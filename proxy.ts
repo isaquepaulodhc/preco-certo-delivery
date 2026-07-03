@@ -3,7 +3,13 @@ import { createServerClient } from "@supabase/ssr";
 
 import { getPublicEnv } from "@/lib/env";
 
-const appRoutes = ["/dashboard", "/onboarding"];
+const appRoutes = [
+  "/dashboard",
+  "/onboarding",
+  "/store-profile",
+  "/financial-settings",
+  "/fixed-costs",
+];
 const authRoutes = ["/login", "/register"];
 
 export async function proxy(request: NextRequest) {
