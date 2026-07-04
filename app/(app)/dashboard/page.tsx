@@ -128,7 +128,7 @@ export default async function DashboardPage() {
           <CardContent className="grid gap-3 text-sm text-muted-foreground md:grid-cols-3">
             <p>Revise perfil, logo e WhatsApp da loja.</p>
             <p>Configure faturamento, margem e taxas iFood.</p>
-            <p>Cadastre ingredientes na Fase 3.</p>
+            <p>Cadastre ingredientes e monte fichas tecnicas dos produtos.</p>
           </CardContent>
         </Card>
       </div>

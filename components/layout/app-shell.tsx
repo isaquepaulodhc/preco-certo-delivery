@@ -15,6 +15,7 @@ const navItems = [
   { href: "/financial-settings", label: "Financeiro" },
   { href: "/fixed-costs", label: "Custos fixos" },
   { href: "/ingredients", label: "Ingredientes" },
+  { href: "/products", label: "Produtos" },
 ];
 
 export function AppShell({ children, businessName, businessLogoUrl }: AppShellProps) {
