@@ -200,6 +200,22 @@ Fluxo previsto:
 - Admin aprova.
 - Sistema ativa assinatura e define `paid_until = hoje + 30 dias`.
 
+Na implementacao da Fase 8, o fluxo manual usa:
+
+- Rota do cliente: `/billing`.
+- Rota administrativa minima: `/admin/payments`.
+- Migration: `supabase/migrations/0005_manual_pix_billing.sql`.
+- RPCs: `create_manual_pix_payment_request`, `approve_payment_request`, `cancel_payment_request`.
+
+Para cadastrar o primeiro admin apos aplicar a migration, crie o usuario normalmente, copie o `auth.users.id` no Supabase e execute:
+
+```sql
+insert into public.admins (user_id, role)
+values ('USER_UUID_AQUI', 'owner');
+```
+
+Nao ha tela para promover usuarios nesta fase.
+
 ## Testes
 
 Usar Vitest.

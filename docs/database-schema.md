@@ -115,8 +115,11 @@ Campos:
 - `due_date date`
 - `proof_url text`
 - `payment_code text unique not null`
+- `requested_by uuid references auth.users(id)`
 - `approved_at timestamptz`
 - `approved_by uuid references auth.users(id)`
+- `canceled_by uuid references auth.users(id)`
+- `canceled_at timestamptz`
 - `created_at timestamptz default now()`
 - `updated_at timestamptz default now()`
 
@@ -125,6 +128,12 @@ CHECK:
 - `status in ('pending', 'approved', 'rejected', 'cancelled')`
 
 `payment_code` deve ser gerado por sequence ou funcao SQL segura contra concorrencia, no formato `PCD-00001`.
+
+Na Fase 8, a tabela passa a ser operada por RPCs para evitar valor vindo do cliente, pedido duplicado pendente e aprovacao parcial:
+
+- `create_manual_pix_payment_request(plan_code)`: cria ou retorna o pedido `pending` existente do negocio logado.
+- `approve_payment_request(payment_request_id)`: exige admin, aprova apenas pedido `pending`, atualiza assinatura e registra auditoria de aprovacao em uma unica transacao.
+- `cancel_payment_request(payment_request_id)`: exige admin, cancela apenas pedido `pending` e nao altera assinatura.
 
 ### fixed_costs
 
@@ -312,6 +321,10 @@ Constraints:
 
 - `unique(user_id)`
 - CHECK de `role in ('admin', 'owner', 'support')`
+
+Funcao auxiliar:
+
+- `is_admin()`: retorna verdadeiro quando `auth.uid()` existe em `admins` com papel administrativo permitido.
 
 ## Indices Obrigatorios
 

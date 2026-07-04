@@ -18,6 +18,7 @@ const navItems = [
   { href: "/products", label: "Produtos" },
   { href: "/combos", label: "Combos" },
   { href: "/simulator", label: "Simulador" },
+  { href: "/billing", label: "Assinatura" },
 ];
 
 export function AppShell({ children, businessName, businessLogoUrl }: AppShellProps) {
