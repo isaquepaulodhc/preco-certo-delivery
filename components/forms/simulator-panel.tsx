@@ -44,12 +44,16 @@ type SimulatorPanelProps = {
   items: SimulatorItemOption[];
   fixedCosts: SimulatorFixedCostRow[];
   pricingSettings: PricingSettings;
+  initialItemType?: SimulationItemType;
+  initialItemId?: string;
 };
 
 export function SimulatorPanel({
   items,
   fixedCosts,
   pricingSettings,
+  initialItemType,
+  initialItemId,
 }: SimulatorPanelProps) {
   const availableProducts = items.filter(
     (item) => item.type === "product" && item.safeCost != null,
@@ -57,7 +61,13 @@ export function SimulatorPanel({
   const availableCombos = items.filter(
     (item) => item.type === "combo" && item.safeCost != null,
   );
-  const defaultItem = availableProducts[0] ?? availableCombos[0];
+  const requestedItem = items.find(
+    (item) =>
+      item.type === initialItemType &&
+      item.id === initialItemId &&
+      item.safeCost != null,
+  );
+  const defaultItem = requestedItem ?? availableProducts[0] ?? availableCombos[0];
   const form = useForm<SimulatorInput>({
     resolver: zodResolver(simulatorSchema),
     defaultValues: {
@@ -83,11 +93,15 @@ export function SimulatorPanel({
   const selectedChannel = watchedValues.channel ?? "own";
   const selectableItems =
     selectedType === "product" ? availableProducts : availableCombos;
-  const selectedItem = items.find((item) => item.id === watchedValues.itemId);
+  const selectedItem = items.find(
+    (item) => item.id === watchedValues.itemId && item.type === selectedType,
+  );
 
   useEffect(() => {
-    const currentItem = items.find((item) => item.id === form.getValues("itemId"));
     const currentType = form.getValues("itemType");
+    const currentItem = items.find(
+      (item) => item.id === form.getValues("itemId") && item.type === currentType,
+    );
 
     if (currentItem?.type === currentType && currentItem.safeCost != null) {
       return;

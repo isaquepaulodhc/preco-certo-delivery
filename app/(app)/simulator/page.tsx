@@ -49,8 +49,19 @@ type ComboItemRecord = {
   product_id: string;
   quantity: number;
 };
+type SimulatorPageSearchParams = {
+  type?: string;
+  id?: string;
+};
 
-export default async function SimulatorPage() {
+export default async function SimulatorPage({
+  searchParams,
+}: {
+  searchParams?: Promise<SimulatorPageSearchParams>;
+}) {
+  const params = await searchParams;
+  const initialItemType =
+    params?.type === "product" || params?.type === "combo" ? params.type : undefined;
   const supabase = await createClient();
   const { data: business } = await supabase
     .from("businesses")
@@ -167,6 +178,8 @@ export default async function SimulatorPage() {
             items={simulatorItems}
             fixedCosts={(fixedCosts ?? []) as SimulatorFixedCostRow[]}
             pricingSettings={pricingSettings}
+            initialItemType={initialItemType}
+            initialItemId={params?.id}
           />
         </CardContent>
       </Card>

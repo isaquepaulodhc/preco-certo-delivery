@@ -75,6 +75,7 @@ type CombosManagerProps = {
   products: ComboProductOption[];
   fixedCosts: FixedCostSummaryRow[];
   pricingSettings: PricingSettings;
+  focusId?: string;
 };
 
 type ComboDraftItem = {
@@ -101,6 +102,7 @@ export function CombosManager({
   products,
   fixedCosts,
   pricingSettings,
+  focusId,
 }: CombosManagerProps) {
   const [combos, setCombos] = useState(initialCombos);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -365,6 +367,7 @@ export function CombosManager({
                 products={products}
                 fixedCostPercentage={fixedCostSummary.percentage}
                 pricingSettings={pricingSettings}
+                isFocused={focusId === combo.id}
                 onEdit={() => setEditingId(combo.id)}
                 onToggleActive={() => toggleActive(combo)}
               />
@@ -623,6 +626,7 @@ function ComboCard({
   products,
   fixedCostPercentage,
   pricingSettings,
+  isFocused,
   onEdit,
   onToggleActive,
 }: {
@@ -630,6 +634,7 @@ function ComboCard({
   products: ComboProductOption[];
   fixedCostPercentage: number | null;
   pricingSettings: PricingSettings;
+  isFocused: boolean;
   onEdit: () => void;
   onToggleActive: () => void;
 }) {
@@ -669,7 +674,12 @@ function ComboCard({
   });
 
   return (
-    <article className="rounded-lg border bg-background p-4">
+    <article
+      id={`combo-${combo.id}`}
+      className={`rounded-lg border bg-background p-4 ${
+        isFocused ? "border-foreground shadow-sm ring-2 ring-foreground/10" : ""
+      }`}
+    >
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-2">

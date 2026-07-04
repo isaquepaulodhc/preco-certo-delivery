@@ -15,6 +15,9 @@ import { type Unit } from "@/lib/calculations/units";
 import { createClient } from "@/lib/supabase/server";
 
 type ComboRecord = Omit<ComboRow, "items">;
+type CombosPageSearchParams = {
+  focus?: string;
+};
 
 type ProductRecord = {
   id: string;
@@ -36,7 +39,12 @@ type IngredientRecord = {
   unit_cost: number;
 };
 
-export default async function CombosPage() {
+export default async function CombosPage({
+  searchParams,
+}: {
+  searchParams?: Promise<CombosPageSearchParams>;
+}) {
+  const params = await searchParams;
   const supabase = await createClient();
   const { data: business } = await supabase
     .from("businesses")
@@ -159,6 +167,7 @@ export default async function CombosPage() {
             products={productOptions as ComboProductOption[]}
             fixedCosts={(fixedCosts ?? []) as FixedCostSummaryRow[]}
             pricingSettings={pricingSettings}
+            focusId={params?.focus}
           />
         </CardContent>
       </Card>

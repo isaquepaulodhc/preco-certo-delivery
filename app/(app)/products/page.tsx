@@ -13,8 +13,16 @@ import { type PricingSettings } from "@/lib/calculations/pricing";
 import { createClient } from "@/lib/supabase/server";
 
 type ProductRecord = Omit<ProductRow, "technicalSheet">;
+type ProductsPageSearchParams = {
+  focus?: string;
+};
 
-export default async function ProductsPage() {
+export default async function ProductsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<ProductsPageSearchParams>;
+}) {
+  const params = await searchParams;
   const supabase = await createClient();
   const { data: business } = await supabase
     .from("businesses")
@@ -92,6 +100,7 @@ export default async function ProductsPage() {
             ingredients={(ingredients ?? []) as IngredientOption[]}
             fixedCosts={(fixedCosts ?? []) as FixedCostSummaryRow[]}
             pricingSettings={pricingSettings}
+            focusId={params?.focus}
           />
         </CardContent>
       </Card>

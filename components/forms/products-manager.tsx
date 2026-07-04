@@ -73,6 +73,7 @@ type ProductsManagerProps = {
   ingredients: IngredientOption[];
   fixedCosts: FixedCostSummaryRow[];
   pricingSettings: PricingSettings;
+  focusId?: string;
 };
 
 type SheetDraftItem = {
@@ -100,6 +101,7 @@ export function ProductsManager({
   ingredients,
   fixedCosts,
   pricingSettings,
+  focusId,
 }: ProductsManagerProps) {
   const [products, setProducts] = useState(initialProducts);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -365,6 +367,7 @@ export function ProductsManager({
                 ingredients={ingredients}
                 fixedCostPercentage={fixedCostSummary.percentage}
                 pricingSettings={pricingSettings}
+                isFocused={focusId === product.id}
                 onEdit={() => setEditingId(product.id)}
                 onToggleActive={() => toggleActive(product)}
               />
@@ -627,6 +630,7 @@ function ProductCard({
   ingredients,
   fixedCostPercentage,
   pricingSettings,
+  isFocused,
   onEdit,
   onToggleActive,
 }: {
@@ -634,6 +638,7 @@ function ProductCard({
   ingredients: IngredientOption[];
   fixedCostPercentage: number | null;
   pricingSettings: PricingSettings;
+  isFocused: boolean;
   onEdit: () => void;
   onToggleActive: () => void;
 }) {
@@ -664,7 +669,12 @@ function ProductCard({
   });
 
   return (
-    <article className="rounded-lg border bg-background p-4">
+    <article
+      id={`product-${product.id}`}
+      className={`rounded-lg border bg-background p-4 ${
+        isFocused ? "border-foreground shadow-sm ring-2 ring-foreground/10" : ""
+      }`}
+    >
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-2">
