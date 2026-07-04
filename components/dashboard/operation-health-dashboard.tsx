@@ -34,11 +34,18 @@ export function OperationHealthDashboard({ report }: OperationHealthDashboardPro
         onFilterChange={handleFilterChange}
       />
       <div id="menu-margin-diagnosis" className="scroll-mt-6">
-        <div className="mb-4">
-          <p className="text-sm text-muted-foreground">
+        <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#F97316]">
             Diagnostico de Margem do Cardapio
+            </p>
+            <h2 className="mt-1 text-2xl font-bold text-[#0F172A]">
+              Itens que precisam de atencao
+            </h2>
+          </div>
+          <p className="max-w-xl text-sm text-[#64748B]">
+            Filtre por status e abra o produto, combo ou simulador para agir no preco.
           </p>
-          <h2 className="mt-1 text-2xl font-semibold">Itens que precisam de atencao</h2>
         </div>
         <MenuMarginDiagnosis report={report} activeFilter={activeFilter} />
       </div>

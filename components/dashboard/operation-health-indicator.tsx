@@ -19,31 +19,41 @@ const healthView: Record<
     label: string;
     description: string;
     className: string;
+    iconClassName: string;
+    badgeClassName: string;
     icon: ComponentType<{ className?: string }>;
   }
 > = {
   neutral: {
     label: "Neutro",
     description: "Ainda faltam dados para avaliar a margem liquida do cardapio.",
-    className: "border-muted-foreground/30 bg-muted/40",
+    className: "border-[#E2E8F0] bg-white",
+    iconClassName: "bg-slate-100 text-[#64748B]",
+    badgeClassName: "bg-slate-100 text-[#64748B]",
     icon: Info,
   },
   red: {
     label: "Vermelho",
     description: "Existe pelo menos um item ativo com lucro liquido estimado menor ou igual a zero.",
-    className: "border-destructive/40 bg-destructive/10",
+    className: "border-[#FECACA] bg-[#FEF2F2]",
+    iconClassName: "bg-white text-[#DC2626]",
+    badgeClassName: "bg-[#DC2626] text-white",
     icon: CircleAlert,
   },
   yellow: {
     label: "Amarelo",
     description: "Ha itens abaixo da margem desejada ou dados incompletos relevantes.",
-    className: "border-yellow-500/40 bg-yellow-500/10",
+    className: "border-[#FDE68A] bg-[#FFF7ED]",
+    iconClassName: "bg-white text-[#F59E0B]",
+    badgeClassName: "bg-[#F59E0B] text-white",
     icon: AlertTriangle,
   },
   green: {
     label: "Verde",
     description: "Todos os itens ativos avaliaveis estao na margem desejada.",
-    className: "border-green-600/40 bg-green-600/10",
+    className: "border-[#BBF7D0] bg-[#F0FDF4]",
+    iconClassName: "bg-white text-[#16A34A]",
+    badgeClassName: "bg-[#16A34A] text-white",
     icon: CheckCircle2,
   },
 };
@@ -57,23 +67,33 @@ export function OperationHealthIndicator({
   const Icon = view.icon;
 
   return (
-    <section className={`rounded-lg border p-4 ${view.className}`}>
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <section className={`rounded-2xl border p-5 shadow-sm ${view.className}`}>
+      <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex items-start gap-3">
-          <span className="flex size-10 items-center justify-center rounded-lg border bg-background">
+          <span className={`flex size-12 items-center justify-center rounded-2xl ${view.iconClassName}`}>
             <Icon className="size-5" />
           </span>
-          <div>
-            <p className="text-sm text-muted-foreground">Saude da Operacao</p>
-            <h2 className="text-2xl font-semibold">{view.label}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{view.description}</p>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-semibold text-[#64748B]">Saude da Operacao</p>
+              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${view.badgeClassName}`}>
+                {view.label}
+              </span>
+            </div>
+            <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#0F172A]">
+              Diagnostico do cardapio
+            </h2>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-[#64748B]">
+              {view.description}
+            </p>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2 text-sm md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
           <HealthCount
             filter="loss"
             label="Prejuizo"
             value={report.lossItems.length}
+            tone="red"
             activeFilter={activeFilter}
             onFilterChange={onFilterChange}
           />
@@ -81,6 +101,7 @@ export function OperationHealthIndicator({
             filter="attention"
             label="Atencao"
             value={report.belowMarginItems.length}
+            tone="yellow"
             activeFilter={activeFilter}
             onFilterChange={onFilterChange}
           />
@@ -88,6 +109,7 @@ export function OperationHealthIndicator({
             filter="healthy"
             label="Saudaveis"
             value={report.healthyItems.length}
+            tone="green"
             activeFilter={activeFilter}
             onFilterChange={onFilterChange}
           />
@@ -95,6 +117,7 @@ export function OperationHealthIndicator({
             filter="incomplete"
             label="Incompletos"
             value={report.incompleteItems.length}
+            tone="neutral"
             activeFilter={activeFilter}
             onFilterChange={onFilterChange}
           />
@@ -108,28 +131,38 @@ function HealthCount({
   filter,
   label,
   value,
+  tone,
   activeFilter,
   onFilterChange,
 }: {
   filter: HealthFilter;
   label: string;
   value: number;
+  tone: "red" | "yellow" | "green" | "neutral";
   activeFilter?: HealthFilter;
   onFilterChange?: (filter: HealthFilter) => void;
 }) {
   const isActive = activeFilter === filter;
+  const tones = {
+    red: "text-[#DC2626] bg-[#FEF2F2]",
+    yellow: "text-[#F59E0B] bg-[#FFF7ED]",
+    green: "text-[#16A34A] bg-[#F0FDF4]",
+    neutral: "text-[#64748B] bg-slate-100",
+  };
 
   return (
     <button
       type="button"
       onClick={() => onFilterChange?.(filter)}
-      className={`rounded-lg border bg-background px-3 py-2 text-center transition hover:border-foreground/40 ${
-        isActive ? "border-foreground shadow-sm ring-2 ring-foreground/10" : ""
+      className={`rounded-2xl border bg-white px-4 py-3 text-left shadow-sm transition hover:border-[#F97316]/50 hover:shadow-md ${
+        isActive ? "border-[#F97316] ring-2 ring-[#F97316]/15" : "border-[#E2E8F0]"
       }`}
       aria-pressed={isActive}
     >
-      <p className="text-lg font-semibold">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
+      <span className={`inline-flex rounded-xl px-2.5 py-1 text-xs font-semibold ${tones[tone]}`}>
+        {label}
+      </span>
+      <p className="mt-2 text-2xl font-bold text-[#0F172A]">{value}</p>
     </button>
   );
 }

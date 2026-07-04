@@ -1,12 +1,21 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, CircleDollarSign, Store } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
+  CircleDollarSign,
+  Package,
+  ReceiptText,
+  Store,
+  Target,
+} from "lucide-react";
 
 import { OperationHealthDashboard } from "@/components/dashboard/operation-health-dashboard";
 import { AppShell } from "@/components/layout/app-shell";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   calculateComboBaseCost,
   calculateComboSafeCost,
@@ -18,7 +27,11 @@ import {
   isFixedCostPercentageHigh,
 } from "@/lib/calculations/fixed-costs";
 import { formatCurrency } from "@/lib/calculations/money";
-import { evaluateOperationHealth, type OperationHealthItemInput } from "@/lib/calculations/operation-health";
+import {
+  evaluateOperationHealth,
+  type OperationHealthItemInput,
+  type OperationHealthStatus,
+} from "@/lib/calculations/operation-health";
 import { calculateProductBaseCost, calculateProductSafeCost } from "@/lib/calculations/products";
 import { type PricingSettings } from "@/lib/calculations/pricing";
 import { type Unit } from "@/lib/calculations/units";
@@ -163,27 +176,93 @@ export default async function DashboardPage() {
   const activeCombosCount = comboRows.filter((item) => item.active).length;
   const activeFixedCostsCount = (fixedCosts ?? []).filter((item) => item.active).length;
   const hasHighFixedCost = isFixedCostPercentageHigh(fixedCostPercentage);
+  const attentionCount =
+    healthReport.lossItems.length +
+    healthReport.belowMarginItems.length +
+    healthReport.incompleteItems.length;
+  const pricingStatus = getPricingStatusView(healthReport.status);
 
   return (
     <AppShell businessName={business.name} businessLogoUrl={business.business_logo_url}>
-      <div className="mb-8">
-        <p className="text-sm text-muted-foreground">Dashboard inicial</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-          Bem-vindo, {business.name}
-        </h1>
-      </div>
+      <section className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#F97316]">
+            Dashboard
+          </p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-[#0F172A] md:text-4xl">
+            Painel de lucro do delivery
+          </h1>
+          <p className="mt-2 max-w-2xl text-base text-[#64748B]">
+            Acompanhe CMV, margem e preços sugeridos dos seus produtos.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href="/billing"
+            className="inline-flex items-center gap-2 rounded-xl border border-[#BBF7D0] bg-[#F0FDF4] px-4 py-2 text-sm font-semibold text-[#16A34A]"
+          >
+            <CheckCircle2 className="size-4" />
+            {effectiveStatus === "active" ? "Plano ativo" : "Ver assinatura"}
+          </Link>
+          <Link
+            href="/products"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#F97316] px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:bg-[#EA580C]"
+          >
+            Cadastrar produto
+            <ArrowRight className="size-4" />
+          </Link>
+        </div>
+      </section>
 
-      <div className="mb-6 space-y-3">
-        <OperationHealthDashboard report={healthReport} />
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          icon={Target}
+          label="Margem desejada"
+          value={`${(business.desired_profit_margin * 100).toFixed(0)}%`}
+          detail="Margem minima definida para seus produtos"
+          tone="orange"
+        />
+        <MetricCard
+          icon={CircleDollarSign}
+          label="Custos fixos"
+          value={formatCurrency(fixedCostsTotal)}
+          detail={
+            fixedCostPercentage == null
+              ? "Informe faturamento medio"
+              : `${(fixedCostPercentage * 100).toFixed(2)}% do faturamento medio`
+          }
+          tone="green"
+        />
+        <MetricCard
+          icon={Package}
+          label="Produtos cadastrados"
+          value={String(activeProductsCount)}
+          detail={`${activeCombosCount} combos ativos e ${activeIngredientsCount} ingredientes`}
+          tone="blue"
+        />
+        <MetricCard
+          icon={AlertTriangle}
+          label="Status da precificacao"
+          value={pricingStatus.label}
+          detail={
+            attentionCount > 0
+              ? `${attentionCount} ponto(s) precisam de revisao`
+              : "Cardapio sem alertas avaliaveis"
+          }
+          tone={pricingStatus.tone}
+        />
+      </section>
+
+      <div className="mt-6 space-y-3">
         {business.average_monthly_revenue <= 0 ? (
-          <Alert>
+          <Alert className="border-[#F59E0B]/30 bg-[#FFF7ED] text-[#92400E]">
             <AlertDescription>
               Informe faturamento medio para calcular margem liquida estimada.
             </AlertDescription>
           </Alert>
         ) : null}
         {hasHighFixedCost ? (
-          <Alert variant="destructive">
+          <Alert className="border-[#DC2626]/25 bg-[#FEF2F2] text-[#991B1B]">
             <AlertDescription>
               Custos fixos acima de 40% do faturamento medio podem pressionar sua margem.
             </AlertDescription>
@@ -191,112 +270,199 @@ export default async function DashboardPage() {
         ) : null}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="rounded-lg">
-          <CardHeader>
-            <Store className="size-5" />
-            <CardTitle>Perfil do negocio</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1 text-sm text-muted-foreground">
-            <p>{business.segment || "Segmento nao informado"}</p>
-            <p>{business.city || "Cidade nao informada"}</p>
-            <Link href="/store-profile">
-              <Button variant="outline" className="mt-3">
-                Editar perfil
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-lg">
-          <CardHeader>
-            <CheckCircle2 className="size-5" />
-            <CardTitle>Assinatura</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1 text-sm text-muted-foreground">
-            <p>Status efetivo: {effectiveStatus}</p>
-            <p>Pago ate: {subscription?.paid_until || "nao informado"}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-lg">
-          <CardHeader>
-            <CircleDollarSign className="size-5" />
-            <CardTitle>Financeiro inicial</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1 text-sm text-muted-foreground">
-            <p>Faturamento medio: {formatCurrency(business.average_monthly_revenue)}</p>
-            <p>Margem desejada: {(business.desired_profit_margin * 100).toFixed(2)}%</p>
-            <Link href="/financial-settings">
-              <Button variant="outline" className="mt-3">
-                Ajustar taxas
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
+      <div className="mt-6">
+        <OperationHealthDashboard report={healthReport} />
       </div>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-4">
+      <section className="mt-6 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+        <Card className="rounded-2xl border-[#E2E8F0] bg-white shadow-sm">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <span className="flex size-11 items-center justify-center rounded-2xl bg-[#FFF7ED] text-[#F97316]">
+                <Store className="size-5" />
+              </span>
+              <div>
+                <CardTitle>Perfil do negocio</CardTitle>
+                <p className="text-sm text-[#64748B]">
+                  {business.segment || "Segmento nao informado"} -{" "}
+                  {business.city || "Cidade nao informada"}
+                </p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Link href="/store-profile">
+              <Button variant="outline">Editar perfil</Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl border-[#E2E8F0] bg-white shadow-sm">
+          <CardHeader>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <CardTitle>Configure sua plataforma em 3 passos</CardTitle>
+                <p className="mt-1 text-sm text-[#64748B]">
+                  Revise as bases que alimentam precos, margem e diagnostico.
+                </p>
+              </div>
+              <span className="rounded-full bg-[#F0FDF4] px-3 py-1 text-xs font-semibold text-[#16A34A]">
+                {activeProductsCount > 0 ? "Em andamento" : "Comece agora"}
+              </span>
+            </div>
+          </CardHeader>
+          <CardContent className="grid gap-3 text-sm md:grid-cols-3">
+            <StepPill label="Perfil do negocio" href="/store-profile" done />
+            <StepPill
+              label="Taxas e margem"
+              href="/financial-settings"
+              done={fixedCostPercentage != null}
+            />
+            <StepPill
+              label="Produtos e combos"
+              href="/products"
+              done={activeProductsCount > 0}
+            />
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <SummaryCard label="Ingredientes ativos" value={String(activeIngredientsCount)} />
-        <SummaryCard label="Produtos ativos" value={String(activeProductsCount)} />
         <SummaryCard label="Combos ativos" value={String(activeCombosCount)} />
         <SummaryCard label="Custos fixos ativos" value={String(activeFixedCostsCount)} />
-      </div>
+        <SummaryCard
+          label="Faturamento medio"
+          value={formatCurrency(business.average_monthly_revenue)}
+        />
+      </section>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-        <Card className="rounded-lg">
+      <section className="mt-6 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+        <Card className="rounded-2xl border-[#E2E8F0] bg-white shadow-sm">
           <CardHeader>
-            <CardTitle>Custos fixos</CardTitle>
+            <div className="flex items-center gap-3">
+              <span className="flex size-11 items-center justify-center rounded-2xl bg-[#F0FDF4] text-[#16A34A]">
+                <ReceiptText className="size-5" />
+              </span>
+              <div>
+                <CardTitle>Custos fixos</CardTitle>
+                <p className="text-sm text-[#64748B]">Peso dos custos na operacao.</p>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>Total ativo: {formatCurrency(fixedCostsTotal)}</p>
+          <CardContent className="space-y-3 text-sm text-[#64748B]">
+            <p className="text-2xl font-bold text-[#0F172A]">{formatCurrency(fixedCostsTotal)}</p>
             <p>
               Percentual do faturamento:{" "}
-              {fixedCostPercentage == null
-                ? "informe faturamento medio"
-                : `${(fixedCostPercentage * 100).toFixed(2)}%`}
+              <span className="font-semibold text-[#0F172A]">
+                {fixedCostPercentage == null
+                  ? "informe faturamento medio"
+                  : `${(fixedCostPercentage * 100).toFixed(2)}%`}
+              </span>
             </p>
             <Link href="/fixed-costs">
-              <Button variant="outline" className="mt-3">
-                Gerenciar custos
-              </Button>
+              <Button variant="outline">Gerenciar custos</Button>
             </Link>
           </CardContent>
         </Card>
 
-        <Card className="rounded-lg">
-          <CardHeader>
-            <CardTitle>Proximos passos</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 text-sm text-muted-foreground md:grid-cols-3">
-            <p>Revise perfil, logo e WhatsApp da loja.</p>
-            <p>Configure faturamento, margem e taxas iFood.</p>
-            <p>Monte fichas tecnicas, combos e simule cenarios de preco.</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="mt-6 rounded-lg border bg-background p-4">
-        <h2 className="text-lg font-semibold">Dica de reajuste gradual</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Se um produto estiver muito abaixo da margem de lucro ideal, evite
-          aumentar o preço de uma vez só. Em muitos casos, é melhor reajustar
-          gradualmente, testar a reação dos clientes e acompanhar o impacto no
-          faturamento mensal. Assim você protege sua margem sem comprometer as
-          vendas ou perder clientes de forma brusca.
-        </p>
-      </div>
+        <div className="rounded-2xl border border-[#E2E8F0] bg-[#FFF7ED] p-5 shadow-sm">
+          <h2 className="text-lg font-bold text-[#0F172A]">Dica de reajuste gradual</h2>
+          <p className="mt-2 text-sm leading-6 text-[#64748B]">
+            Se um produto estiver muito abaixo da margem de lucro ideal, evite
+            aumentar o preço de uma vez só. Em muitos casos, é melhor reajustar
+            gradualmente, testar a reação dos clientes e acompanhar o impacto no
+            faturamento mensal. Assim você protege sua margem sem comprometer as
+            vendas ou perder clientes de forma brusca.
+          </p>
+        </div>
+      </section>
     </AppShell>
   );
 }
 
 function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border bg-background p-4">
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="mt-2 text-2xl font-semibold">{value}</p>
+    <div className="rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
+      <p className="text-sm font-medium text-[#64748B]">{label}</p>
+      <p className="mt-2 text-2xl font-bold text-[#0F172A]">{value}</p>
     </div>
   );
+}
+
+function MetricCard({
+  icon: Icon,
+  label,
+  value,
+  detail,
+  tone,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  detail: string;
+  tone: "orange" | "green" | "blue" | "red" | "yellow" | "neutral";
+}) {
+  const tones = {
+    orange: "bg-[#FFF7ED] text-[#F97316]",
+    green: "bg-[#F0FDF4] text-[#16A34A]",
+    blue: "bg-blue-50 text-blue-600",
+    red: "bg-[#FEF2F2] text-[#DC2626]",
+    yellow: "bg-amber-50 text-[#F59E0B]",
+    neutral: "bg-slate-100 text-[#64748B]",
+  };
+
+  return (
+    <div className="rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
+      <div className="flex items-start gap-4">
+        <span className={`flex size-12 items-center justify-center rounded-2xl ${tones[tone]}`}>
+          <Icon className="size-5" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-[#0F172A]">{label}</p>
+          <p className="mt-2 text-3xl font-bold tracking-tight text-[#0F172A]">{value}</p>
+          <p className="mt-2 text-sm leading-5 text-[#64748B]">{detail}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StepPill({
+  label,
+  href,
+  done,
+}: {
+  label: string;
+  href: string;
+  done: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center justify-between rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-3 text-[#0F172A] transition hover:border-[#F97316]/40 hover:bg-white"
+    >
+      <span className="font-medium">{label}</span>
+      <span
+        className={`rounded-full px-2 py-1 text-xs font-semibold ${
+          done ? "bg-[#F0FDF4] text-[#16A34A]" : "bg-slate-100 text-[#64748B]"
+        }`}
+      >
+        {done ? "Concluido" : "Pendente"}
+      </span>
+    </Link>
+  );
+}
+
+function getPricingStatusView(status: OperationHealthStatus) {
+  const statusMap = {
+    neutral: { label: "Incompleto", tone: "neutral" as const },
+    red: { label: "Prejuizo", tone: "red" as const },
+    yellow: { label: "Atencao", tone: "yellow" as const },
+    green: { label: "Saudavel", tone: "green" as const },
+  };
+
+  return statusMap[status];
 }
 
 function calculateProductSafeCostFromRows(

@@ -1,4 +1,13 @@
 import { redirect } from "next/navigation";
+import {
+  CheckCircle2,
+  CreditCard,
+  Landmark,
+  QrCode,
+  ReceiptText,
+  ShieldCheck,
+  Timer,
+} from "lucide-react";
 
 import { requestManualPixPayment } from "@/app/(app)/billing/actions";
 import { AppShell } from "@/components/layout/app-shell";
@@ -88,101 +97,211 @@ export default async function BillingPage() {
   const pixKey = process.env.PIX_KEY;
   const pixReceiverName = process.env.PIX_RECEIVER_NAME;
   const pendingPlan = getBillingPlan(pendingRequest?.plan ?? null);
+  const statusView = getStatusView(pendingRequest ? "pending" : effectiveStatus);
+  const StatusIcon = statusView.icon;
 
   return (
     <AppShell businessName={business.name} businessLogoUrl={business.business_logo_url}>
-      <div className="mb-6">
-        <p className="text-sm text-muted-foreground">Assinatura</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-          Planos e pagamento via PIX
-        </h1>
-      </div>
+      <section className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#F97316]">
+            Assinatura
+          </p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-[#0F172A] md:text-4xl">
+            Planos e pagamento via PIX
+          </h1>
+          <p className="mt-2 max-w-2xl text-base text-[#64748B]">
+            Regularize o acesso da sua loja com pagamento manual e aprovacao segura.
+          </p>
+        </div>
+        <span className={`inline-flex w-fit items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${statusView.className}`}>
+          <StatusIcon className="size-4" />
+          {pendingRequest ? "Pagamento pendente" : statusLabels[effectiveStatus]}
+        </span>
+      </section>
 
-      <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-        <Card className="rounded-lg">
+      <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+        <Card className="rounded-2xl border-[#E2E8F0] bg-white shadow-sm">
           <CardHeader>
-            <CardTitle>Status da assinatura</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>
-              Status efetivo:{" "}
-              <span className="font-medium text-foreground">
-                {pendingRequest ? "Pagamento pendente" : statusLabels[effectiveStatus]}
+            <div className="flex items-center gap-3">
+              <span className="flex size-12 items-center justify-center rounded-2xl bg-[#F0FDF4] text-[#16A34A]">
+                <ShieldCheck className="size-5" />
               </span>
-            </p>
-            <p>Plano atual: {currentPlan?.name ?? subscription?.plan ?? "Trial"}</p>
-            <p>Pago ate: {subscription?.paid_until ?? "nao informado"}</p>
-            <p>Dias restantes: {remainingDays}</p>
-            {pendingRequest ? (
-              <p>
-                Pedido pendente: {pendingRequest.payment_code} -{" "}
-                {pendingPlan?.name ?? pendingRequest.plan}
-              </p>
-            ) : null}
+              <div>
+                <CardTitle>Status da assinatura</CardTitle>
+                <p className="mt-1 text-sm text-[#64748B]">Acesso atual do negocio.</p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="grid gap-3 text-sm text-[#64748B] md:grid-cols-2">
+            <InfoTile
+              label="Status efetivo"
+              value={pendingRequest ? "Pagamento pendente" : statusLabels[effectiveStatus]}
+            />
+            <InfoTile label="Plano atual" value={currentPlan?.name ?? subscription?.plan ?? "Trial"} />
+            <InfoTile label="Pago ate" value={subscription?.paid_until ?? "nao informado"} />
+            <InfoTile label="Dias restantes" value={String(remainingDays)} />
           </CardContent>
         </Card>
 
-        <Card className="rounded-lg">
+        <Card className="rounded-2xl border-[#E2E8F0] bg-white shadow-sm">
           <CardHeader>
-            <CardTitle>Dados para PIX manual</CardTitle>
+            <div className="flex items-center gap-3">
+              <span className="flex size-12 items-center justify-center rounded-2xl bg-[#FFF7ED] text-[#F97316]">
+                <QrCode className="size-5" />
+              </span>
+              <div>
+                <CardTitle>Dados para PIX manual</CardTitle>
+                <p className="mt-1 text-sm text-[#64748B]">Use esses dados no pagamento.</p>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>
-              Chave PIX:{" "}
-              <span className="font-medium text-foreground">
-                {pixKey || "Configure PIX_KEY no ambiente"}
-              </span>
-            </p>
-            <p>
-              Recebedor:{" "}
-              <span className="font-medium text-foreground">
-                {pixReceiverName || "Configure PIX_RECEIVER_NAME no ambiente"}
-              </span>
-            </p>
-            <p>
+          <CardContent className="space-y-3 text-sm text-[#64748B]">
+            <InfoTile
+              label="Chave PIX"
+              value={pixKey || "Configure PIX_KEY no ambiente"}
+              strong
+            />
+            <InfoTile
+              label="Recebedor"
+              value={pixReceiverName || "Configure PIX_RECEIVER_NAME no ambiente"}
+              strong
+            />
+            <p className="rounded-2xl bg-[#FFF7ED] p-3 text-[#9A3412]">
               O acesso so e renovado depois da aprovacao manual do pagamento.
             </p>
           </CardContent>
         </Card>
-      </div>
+      </section>
 
       {pendingRequest ? (
-        <div className="mt-6 rounded-lg border bg-background p-4">
-          <h2 className="text-lg font-semibold">Pagamento pendente</h2>
-          <div className="mt-3 grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
-            <p>Plano: {pendingPlan?.name ?? pendingRequest.plan}</p>
-            <p>Valor: {formatCurrency(pendingRequest.amount)}</p>
-            <p>Codigo de referencia: {pendingRequest.payment_code}</p>
-            <p>Criado em: {new Date(pendingRequest.created_at).toLocaleString("pt-BR")}</p>
+        <section className="mt-6 rounded-2xl border border-[#FDBA74] bg-[#FFF7ED] p-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#F97316]">
+                Pagamento pendente
+              </p>
+              <h2 className="mt-2 text-2xl font-bold text-[#0F172A]">
+                Codigo {pendingRequest.payment_code}
+              </h2>
+              <p className="mt-2 text-sm text-[#64748B]">
+                Faca o PIX, use o codigo de referencia no comprovante e aguarde a aprovacao manual.
+              </p>
+            </div>
+            <span className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#F97316]">
+              {pendingPlan?.name ?? pendingRequest.plan}
+            </span>
           </div>
-          <Alert className="mt-4">
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
+            <InfoTile label="Plano" value={pendingPlan?.name ?? pendingRequest.plan} />
+            <InfoTile label="Valor" value={formatCurrency(pendingRequest.amount)} strong />
+            <InfoTile
+              label="Criado em"
+              value={new Date(pendingRequest.created_at).toLocaleString("pt-BR")}
+            />
+          </div>
+          <Alert className="mt-4 border-[#F97316]/30 bg-white text-[#9A3412]">
             <AlertDescription>
-              Faca o PIX para a chave informada, use o codigo de referencia no
-              comprovante e aguarde a aprovacao manual.
+              Pedido pendente nao libera acesso por si so. A assinatura so muda apos aprovacao administrativa.
             </AlertDescription>
           </Alert>
-        </div>
+        </section>
       ) : null}
 
-      <div className="mt-6 grid gap-4 md:grid-cols-3">
+      <section className="mt-6 grid gap-4 md:grid-cols-3">
         {BILLING_PLANS.map((plan) => (
-          <Card key={plan.code} className="rounded-lg">
+          <Card
+            key={plan.code}
+            className="rounded-2xl border-[#E2E8F0] bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
+          >
             <CardHeader>
-              <CardTitle>{plan.name}</CardTitle>
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex size-11 items-center justify-center rounded-2xl bg-[#FFF7ED] text-[#F97316]">
+                  <CreditCard className="size-5" />
+                </span>
+                <span className="rounded-full bg-[#F8FAFC] px-3 py-1 text-xs font-semibold text-[#64748B]">
+                  PIX manual
+                </span>
+              </div>
+              <CardTitle className="mt-4">{plan.name}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-3xl font-semibold">{formatCurrency(plan.price)}</p>
-              <p className="text-sm text-muted-foreground">Plano mensal via PIX manual.</p>
+              <div>
+                <p className="text-4xl font-bold tracking-tight text-[#0F172A]">
+                  {formatCurrency(plan.price)}
+                </p>
+                <p className="mt-1 text-sm text-[#64748B]">Plano mensal via PIX manual.</p>
+              </div>
               <form action={requestManualPixPayment}>
                 <input type="hidden" name="planCode" value={plan.code} />
-                <Button type="submit" className="w-full" disabled={Boolean(pendingRequest)}>
+                <Button
+                  type="submit"
+                  className="w-full bg-[#F97316] text-white hover:bg-[#EA580C]"
+                  disabled={Boolean(pendingRequest)}
+                >
                   Solicitar pagamento via PIX
                 </Button>
               </form>
             </CardContent>
           </Card>
         ))}
-      </div>
+      </section>
     </AppShell>
   );
+}
+
+function InfoTile({
+  label,
+  value,
+  strong,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+}) {
+  return (
+    <div className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-3">
+      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#64748B]">
+        {label}
+      </p>
+      <p className={`mt-1 break-words ${strong ? "text-lg font-bold" : "font-semibold"} text-[#0F172A]`}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function getStatusView(status: string) {
+  const views = {
+    active: {
+      className: "bg-[#F0FDF4] text-[#16A34A]",
+      icon: CheckCircle2,
+    },
+    trial: {
+      className: "bg-[#FFF7ED] text-[#F97316]",
+      icon: Timer,
+    },
+    pending: {
+      className: "bg-[#FFF7ED] text-[#F97316]",
+      icon: ReceiptText,
+    },
+    expired: {
+      className: "bg-[#FEF2F2] text-[#DC2626]",
+      icon: Landmark,
+    },
+    blocked: {
+      className: "bg-[#FEF2F2] text-[#DC2626]",
+      icon: Landmark,
+    },
+    cancelled: {
+      className: "bg-slate-100 text-[#64748B]",
+      icon: Landmark,
+    },
+    missing: {
+      className: "bg-slate-100 text-[#64748B]",
+      icon: Landmark,
+    },
+  };
+
+  return views[status as keyof typeof views] ?? views.missing;
 }

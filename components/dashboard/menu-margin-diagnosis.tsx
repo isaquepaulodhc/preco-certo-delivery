@@ -40,17 +40,24 @@ export function MenuMarginDiagnosis({ report, activeFilter }: MenuMarginDiagnosi
   const items = getItemsByFilter(report, activeFilter);
 
   return (
-    <section className="rounded-lg border bg-background">
-      <div className="border-b px-4 py-3">
-        <h3 className="font-medium">{view.title}</h3>
-        <p className="mt-1 text-sm text-muted-foreground">{view.description}</p>
+    <section className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-sm">
+      <div className="border-b border-[#E2E8F0] px-5 py-4">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h3 className="text-lg font-bold text-[#0F172A]">{view.title}</h3>
+            <p className="mt-1 text-sm text-[#64748B]">{view.description}</p>
+          </div>
+          <span className="w-fit rounded-full bg-[#F8FAFC] px-3 py-1 text-sm font-semibold text-[#64748B]">
+            {items.length} item(ns)
+          </span>
+        </div>
       </div>
       {items.length === 0 ? (
-        <p className="p-4 text-sm text-muted-foreground">{view.emptyText}</p>
+        <p className="p-5 text-sm text-[#64748B]">{view.emptyText}</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1120px] text-sm">
-            <thead className="bg-muted/60 text-left">
+            <thead className="bg-[#F8FAFC] text-left text-[#64748B]">
               <tr>
                 <th className="p-3 font-medium">Item</th>
                 <th className="p-3 font-medium">Tipo</th>
@@ -81,43 +88,53 @@ function DiagnosisRow({ item }: { item: EvaluatedOperationItem }) {
   const detailHref =
     item.type === "product" ? `/products?focus=${item.id}` : `/combos?focus=${item.id}`;
   const simulatorHref = `/simulator?type=${item.type}&id=${item.id}`;
+  const statusView = getStatusView(item.status);
 
   return (
-    <tr className="border-t align-top">
-      <td className="p-3 font-medium">{item.name}</td>
-      <td className="p-3">{item.type === "product" ? "Produto" : "Combo"}</td>
-      <td className="p-3">{getStatusLabel(item.status)}</td>
-      <td className="p-3">{formatCurrency(item.sellingPrice)}</td>
-      <td className="p-3">{item.safeCost == null ? "-" : formatCurrency(item.safeCost)}</td>
+    <tr className="border-t border-[#E2E8F0] align-top transition hover:bg-[#F8FAFC]">
+      <td className="p-3 font-semibold text-[#0F172A]">{item.name}</td>
+      <td className="p-3 text-[#64748B]">{item.type === "product" ? "Produto" : "Combo"}</td>
       <td className="p-3">
+        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusView.className}`}>
+          {statusView.label}
+        </span>
+      </td>
+      <td className="p-3 font-semibold text-[#0F172A]">{formatCurrency(item.sellingPrice)}</td>
+      <td className="p-3 text-[#64748B]">
+        {item.safeCost == null ? "-" : formatCurrency(item.safeCost)}
+      </td>
+      <td className="p-3 text-[#64748B]">
         {item.estimatedNetMargin == null
           ? "-"
           : `${(item.estimatedNetMargin * 100).toFixed(2)}%`}
       </td>
-      <td className="p-3">
+      <td className="p-3 font-semibold text-[#0F172A]">
         {item.suggestedOwnChannelPrice.status === "ready"
           ? formatCurrency(item.suggestedOwnChannelPrice.price)
           : "-"}
       </td>
-      <td className="p-3">
+      <td className="p-3 text-[#64748B]">
         {item.suggestedIfoodPrice.status === "ready"
           ? formatCurrency(item.suggestedIfoodPrice.price)
           : "-"}
       </td>
-      <td className="p-3">
+      <td className="p-3 text-[#64748B]">
         {item.ownChannelPriceDifference == null
           ? "-"
           : formatCurrency(item.ownChannelPriceDifference)}
       </td>
-      <td className="max-w-[260px] p-3 text-muted-foreground">{item.alertReason}</td>
+      <td className="max-w-[280px] p-3 leading-5 text-[#64748B]">{item.alertReason}</td>
       <td className="p-3">
         <div className="flex flex-wrap gap-2">
-          <Link className="rounded-md border px-2 py-1 text-xs hover:bg-muted" href={detailHref}>
+          <Link
+            className="rounded-full border border-[#E2E8F0] px-3 py-1.5 text-xs font-semibold text-[#0F172A] transition hover:border-[#F97316]/40 hover:bg-[#FFF7ED] hover:text-[#EA580C]"
+            href={detailHref}
+          >
             Abrir
           </Link>
           {item.safeCost == null ? null : (
             <Link
-              className="rounded-md border px-2 py-1 text-xs hover:bg-muted"
+              className="rounded-full bg-[#F97316] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#EA580C]"
               href={simulatorHref}
             >
               Simular
@@ -145,13 +162,16 @@ function getItemsByFilter(report: OperationHealthReport, filter: HealthFilter) {
   return report.incompleteItems;
 }
 
-function getStatusLabel(status: EvaluatedOperationItem["status"]) {
-  const labels: Record<EvaluatedOperationItem["status"], string> = {
-    incomplete: "Incompleto",
-    loss: "Prejuizo",
-    danger: "Perigoso",
-    warning: "Atencao",
-    healthy: "Saudavel",
+function getStatusView(status: EvaluatedOperationItem["status"]) {
+  const labels: Record<
+    EvaluatedOperationItem["status"],
+    { label: string; className: string }
+  > = {
+    incomplete: { label: "Incompleto", className: "bg-slate-100 text-[#64748B]" },
+    loss: { label: "Prejuizo", className: "bg-[#FEF2F2] text-[#DC2626]" },
+    danger: { label: "Perigoso", className: "bg-[#FEF2F2] text-[#DC2626]" },
+    warning: { label: "Atencao", className: "bg-[#FFF7ED] text-[#F59E0B]" },
+    healthy: { label: "Saudavel", className: "bg-[#F0FDF4] text-[#16A34A]" },
   };
 
   return labels[status];
