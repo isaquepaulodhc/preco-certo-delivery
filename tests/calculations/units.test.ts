@@ -22,4 +22,13 @@ describe("convertQuantity", () => {
   it("bloqueia unidade incompativel", () => {
     expect(() => convertQuantity(1, "kg", "ml")).toThrow("Unidades incompativeis.");
   });
+
+  it("converte un apenas com un", () => {
+    expect(convertQuantity(3, "un", "un")).toBe(3);
+  });
+
+  it("bloqueia unidade para massa ou volume", () => {
+    expect(() => convertQuantity(1, "un", "kg")).toThrow("Unidades incompativeis.");
+    expect(() => convertQuantity(1, "ml", "un")).toThrow("Unidades incompativeis.");
+  });
 });

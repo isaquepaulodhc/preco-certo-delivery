@@ -9,6 +9,7 @@ const appRoutes = [
   "/store-profile",
   "/financial-settings",
   "/fixed-costs",
+  "/ingredients",
 ];
 const authRoutes = ["/login", "/register"];
 

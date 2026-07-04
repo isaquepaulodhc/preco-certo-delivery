@@ -6,6 +6,13 @@ export function formatCurrency(value: number) {
 }
 
 export function parseBrazilianCurrency(input: string) {
+  return parseBrazilianNumber(input, "Valor monetario invalido.");
+}
+
+export function parseBrazilianNumber(
+  input: string,
+  errorMessage = "Numero invalido.",
+) {
   const normalized = input
     .replace(/\s/g, "")
     .replace("R$", "")
@@ -15,7 +22,7 @@ export function parseBrazilianCurrency(input: string) {
   const parsed = Number(normalized);
 
   if (Number.isNaN(parsed)) {
-    throw new Error("Valor monetario invalido.");
+    throw new Error(errorMessage);
   }
 
   return parsed;

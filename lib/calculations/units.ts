@@ -17,8 +17,8 @@ const toBaseFactor: Record<Unit, number> = {
 };
 
 export function convertQuantity(quantity: number, from: Unit, to: Unit) {
-  if (quantity < 0) {
-    throw new Error("Quantidade nao pode ser negativa.");
+  if (quantity <= 0) {
+    throw new Error("Quantidade deve ser maior que zero.");
   }
 
   if (unitGroups[from] !== unitGroups[to]) {
