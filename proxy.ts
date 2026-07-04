@@ -12,6 +12,7 @@ const appRoutes = [
   "/ingredients",
   "/products",
   "/combos",
+  "/simulator",
 ];
 const authRoutes = ["/login", "/register"];
 

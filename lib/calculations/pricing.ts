@@ -53,6 +53,26 @@ export type SuggestedPriceResult =
       denominator?: number;
     };
 
+export type ScenarioMarginResult =
+  | {
+      status: "ready";
+      discountAmount: number;
+      cardFeeAmount: number;
+      freeDeliveryAmount: number;
+      marketplaceFeeAmount: number;
+      contributionProfit: number;
+      contributionMargin: number;
+      allocatedFixedCostAmount: number | null;
+      estimatedNetProfit: number | null;
+      estimatedNetMargin: number | null;
+      netMarginStatus: "ready" | "incomplete";
+      netMarginReason?: string;
+    }
+  | {
+      status: "neutral";
+      reason: string;
+    };
+
 export function calculateOwnChannelVariablePercentage(settings: Pick<
   PricingSettings,
   "cardFeePercentage" | "averageCouponPercentage" | "freeDeliveryPercentage"
@@ -240,6 +260,86 @@ export function calculateSuggestedPrice({
     price: safeCost / denominator,
     variablePercentage,
     denominator,
+  };
+}
+
+export function calculateScenarioMargin({
+  sellingPrice,
+  safeCost,
+  fixedCostPercentage,
+  discountPercentage,
+  cardFeePercentage,
+  freeDeliveryPercentage,
+  marketplaceFeePercentage,
+}: {
+  sellingPrice: number;
+  safeCost: number | null;
+  fixedCostPercentage: number | null;
+  discountPercentage: number;
+  cardFeePercentage: number;
+  freeDeliveryPercentage: number;
+  marketplaceFeePercentage: number;
+}): ScenarioMarginResult {
+  if (safeCost == null) {
+    return {
+      status: "neutral",
+      reason: "Item sem custo calculado nao pode ser simulado.",
+    };
+  }
+
+  if (sellingPrice <= 0) {
+    return {
+      status: "neutral",
+      reason: "Informe um preco simulado maior que zero.",
+    };
+  }
+
+  const discountAmount = sellingPrice * discountPercentage;
+  const cardFeeAmount = sellingPrice * cardFeePercentage;
+  const freeDeliveryAmount = sellingPrice * freeDeliveryPercentage;
+  const marketplaceFeeAmount = sellingPrice * marketplaceFeePercentage;
+  const contributionProfit =
+    sellingPrice -
+    safeCost -
+    discountAmount -
+    cardFeeAmount -
+    freeDeliveryAmount -
+    marketplaceFeeAmount;
+  const contributionMargin = contributionProfit / sellingPrice;
+
+  if (fixedCostPercentage == null) {
+    return {
+      status: "ready",
+      discountAmount,
+      cardFeeAmount,
+      freeDeliveryAmount,
+      marketplaceFeeAmount,
+      contributionProfit,
+      contributionMargin,
+      allocatedFixedCostAmount: null,
+      estimatedNetProfit: null,
+      estimatedNetMargin: null,
+      netMarginStatus: "incomplete",
+      netMarginReason: "Informe faturamento medio para calcular margem liquida estimada.",
+    };
+  }
+
+  const allocatedFixedCostAmount = sellingPrice * fixedCostPercentage;
+  const estimatedNetProfit = contributionProfit - allocatedFixedCostAmount;
+  const estimatedNetMargin = estimatedNetProfit / sellingPrice;
+
+  return {
+    status: "ready",
+    discountAmount,
+    cardFeeAmount,
+    freeDeliveryAmount,
+    marketplaceFeeAmount,
+    contributionProfit,
+    contributionMargin,
+    allocatedFixedCostAmount,
+    estimatedNetProfit,
+    estimatedNetMargin,
+    netMarginStatus: "ready",
   };
 }
 
