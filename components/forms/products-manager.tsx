@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Pencil, Plus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { MenuImageUpload } from "@/components/forms/menu-image-upload";
 import {
   calculateFixedCostPercentage,
   calculateFixedCostsTotal,
@@ -33,6 +34,7 @@ import {
   type SuggestedPriceResult,
 } from "@/lib/calculations/pricing";
 import { type Unit } from "@/lib/calculations/units";
+import { getInitials } from "@/lib/storage/business-logos";
 import { createClient } from "@/lib/supabase/client";
 import { productSchema, type ProductInput } from "@/lib/validations/products";
 
@@ -41,6 +43,7 @@ export type ProductRow = {
   name: string;
   category: string | null;
   description: string | null;
+  image_url: string | null;
   selling_price: number;
   active: boolean;
   technicalSheet: ProductIngredientRow[];
@@ -74,6 +77,8 @@ type ProductsManagerProps = {
   fixedCosts: FixedCostSummaryRow[];
   pricingSettings: PricingSettings;
   focusId?: string;
+  businessName: string;
+  businessLogoUrl: string | null;
 };
 
 type SheetDraftItem = {
@@ -102,9 +107,12 @@ export function ProductsManager({
   fixedCosts,
   pricingSettings,
   focusId,
+  businessName,
+  businessLogoUrl,
 }: ProductsManagerProps) {
   const [products, setProducts] = useState(initialProducts);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [focusedId, setFocusedId] = useState<string | null>(focusId ?? null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -120,6 +128,21 @@ export function ProductsManager({
 
     return { total, percentage };
   }, [fixedCosts, pricingSettings.averageMonthlyRevenue, pricingSettings.ifoodMonthlyFee]);
+  const hasActiveIngredients = ingredients.some((ingredient) => ingredient.active);
+
+  useEffect(() => {
+    if (!focusId) {
+      return;
+    }
+
+    window.setTimeout(() => scrollToProduct(focusId), 0);
+  }, [focusId, products.length]);
+
+  function focusProduct(productId: string) {
+    setFocusedId(productId);
+    updateFocusUrl("products", productId);
+    scrollToProduct(productId);
+  }
 
   async function saveProduct(
     values: ProductInput,
@@ -165,12 +188,12 @@ export function ProductsManager({
           .update(productPayload)
           .eq("id", productId)
           .eq("business_id", businessId)
-          .select("id, name, category, description, selling_price, active")
+          .select("id, name, category, description, image_url, selling_price, active")
           .single()
       : supabase
           .from("products")
           .insert(productPayload)
-          .select("id, name, category, description, selling_price, active")
+          .select("id, name, category, description, image_url, selling_price, active")
           .single();
 
     const { data: savedProduct, error: productError } = await productQuery;
@@ -187,11 +210,15 @@ export function ProductsManager({
       technicalSheet: sheetResult.rows,
     };
 
-    setProducts((current) =>
-      productId
+    setProducts((current) => {
+      if (!row.active) {
+        return current.filter((product) => product.id !== row.id);
+      }
+
+      return productId
         ? current.map((product) => (product.id === productId ? row : product))
-        : [row, ...current],
-    );
+        : [row, ...current];
+    });
     setEditingId(null);
 
     if (sheetResult.errorMessage) {
@@ -250,31 +277,41 @@ export function ProductsManager({
     };
   }
 
-  async function toggleActive(product: ProductRow) {
-    setError(null);
-    setMessage(null);
-    const supabase = createClient();
-    const { data, error: updateError } = await supabase
-      .from("products")
-      .update({ active: !product.active })
-      .eq("id", product.id)
-      .eq("business_id", businessId)
-      .select("id, name, category, description, selling_price, active")
-      .single();
+  async function archiveProduct(product: ProductRow) {
+    const confirmed = window.confirm(
+      "Este produto será removido da listagem principal e não poderá ser usado em novos combos. A ficha técnica e o histórico serão preservados. Deseja continuar?",
+    );
 
-    if (updateError) {
-      setError("Nao foi possivel alterar o status do produto.");
+    if (!confirmed) {
       return;
     }
 
+    setError(null);
+    setMessage(null);
+    const supabase = createClient();
+    const { error: updateError } = await supabase
+      .from("products")
+      .update({
+        active: false,
+        deleted_at: new Date().toISOString(),
+      })
+      .eq("id", product.id)
+      .eq("business_id", businessId);
+
+    if (updateError) {
+      setError("Nao foi possivel excluir o produto.");
+      return;
+    }
+
+    setProducts((current) => current.filter((item) => item.id !== product.id));
+    setFocusedId((current) => (current === product.id ? null : current));
+    setMessage("Produto removido da listagem principal. O histórico foi preservado.");
+  }
+
+  function updateProductImage(productId: string, imageUrl: string) {
     setProducts((current) =>
-      current.map((item) =>
-        item.id === product.id
-          ? {
-              ...(data as Omit<ProductRow, "technicalSheet">),
-              technicalSheet: item.technicalSheet,
-            }
-          : item,
+      current.map((product) =>
+        product.id === productId ? { ...product, image_url: imageUrl } : product,
       ),
     );
   }
@@ -305,7 +342,7 @@ export function ProductsManager({
         </Alert>
       ) : null}
 
-      {ingredients.length === 0 ? (
+      {!hasActiveIngredients ? (
         <Alert>
           <AlertDescription>
             Cadastre ingredientes ativos antes de montar fichas tecnicas.
@@ -324,56 +361,80 @@ export function ProductsManager({
         </Alert>
       ) : null}
 
-      <ProductEditor
-        ingredients={ingredients}
-        title="Novo produto"
-        submitLabel="Criar produto"
-        defaultValues={emptyProductValues}
-        defaultSheet={[]}
-        onSubmit={(values, sheet) => saveProduct(values, sheet)}
-      />
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_290px] xl:items-start">
+        <div className="space-y-6">
+          <ProductEditor
+            ingredients={ingredients}
+            title="Novo produto"
+            submitLabel="Criar produto"
+            defaultValues={emptyProductValues}
+            defaultSheet={[]}
+            onSubmit={(values, sheet) => saveProduct(values, sheet)}
+          />
 
-      <div className="space-y-4">
-        {products.length === 0 ? (
-          <div className="rounded-lg border bg-background p-8 text-center text-muted-foreground">
-            Cadastre seu primeiro produto para montar a ficha tecnica e calcular margens.
+          <div className="xl:hidden">
+            <ProductQuickNav
+              products={products}
+              focusedId={focusedId}
+              onSelect={focusProduct}
+            />
           </div>
-        ) : (
-          products.map((product) =>
-            editingId === product.id ? (
-              <ProductEditor
-                key={product.id}
-                ingredients={ingredients}
-                title="Editar produto"
-                submitLabel="Salvar produto"
-                defaultValues={{
-                  name: product.name,
-                  category: product.category ?? "",
-                  description: product.description ?? "",
-                  sellingPrice: String(product.selling_price).replace(".", ","),
-                  active: product.active,
-                }}
-                defaultSheet={product.technicalSheet.map((item) => ({
-                  ingredientId: item.ingredient_id,
-                  quantity: String(item.quantity).replace(".", ","),
-                }))}
-                onSubmit={(values, sheet) => saveProduct(values, sheet, product.id)}
-                onCancel={() => setEditingId(null)}
-              />
+
+          <div className="space-y-4">
+            {products.length === 0 ? (
+              <div className="rounded-[22px] border border-[#E2E8F0] bg-white p-8 text-center text-[#64748B] shadow-sm">
+                Cadastre seu primeiro produto para montar a ficha tecnica e calcular margens.
+              </div>
             ) : (
-              <ProductCard
-                key={product.id}
-                product={product}
-                ingredients={ingredients}
-                fixedCostPercentage={fixedCostSummary.percentage}
-                pricingSettings={pricingSettings}
-                isFocused={focusId === product.id}
-                onEdit={() => setEditingId(product.id)}
-                onToggleActive={() => toggleActive(product)}
-              />
-            ),
-          )
-        )}
+              products.map((product) =>
+                editingId === product.id ? (
+                  <ProductEditor
+                    key={product.id}
+                    ingredients={ingredients}
+                    title="Editar produto"
+                    submitLabel="Salvar produto"
+                    defaultValues={{
+                      name: product.name,
+                      category: product.category ?? "",
+                      description: product.description ?? "",
+                      sellingPrice: String(product.selling_price).replace(".", ","),
+                      active: product.active,
+                    }}
+                    defaultSheet={product.technicalSheet.map((item) => ({
+                      ingredientId: item.ingredient_id,
+                      quantity: String(item.quantity).replace(".", ","),
+                    }))}
+                    onSubmit={(values, sheet) => saveProduct(values, sheet, product.id)}
+                    onCancel={() => setEditingId(null)}
+                  />
+                ) : (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    businessId={businessId}
+                    businessName={businessName}
+                    businessLogoUrl={businessLogoUrl}
+                    ingredients={ingredients}
+                    fixedCostPercentage={fixedCostSummary.percentage}
+                    pricingSettings={pricingSettings}
+                    isFocused={focusedId === product.id}
+                    onEdit={() => setEditingId(product.id)}
+                    onArchive={() => archiveProduct(product)}
+                    onImageUploaded={(imageUrl) => updateProductImage(product.id, imageUrl)}
+                  />
+                ),
+              )
+            )}
+          </div>
+        </div>
+
+        <div className="hidden xl:sticky xl:top-6 xl:block">
+          <ProductQuickNav
+            products={products}
+            focusedId={focusedId}
+            onSelect={focusProduct}
+          />
+        </div>
       </div>
     </div>
   );
@@ -403,7 +464,10 @@ function ProductEditor({
   const [sheet, setSheet] = useState(defaultSheet);
   const [sheetError, setSheetError] = useState<string | null>(null);
 
-  const availableIngredients = ingredients.filter((ingredient) => ingredient.active);
+  const selectedIngredientIds = new Set(sheet.map((item) => item.ingredientId));
+  const availableIngredients = ingredients.filter(
+    (ingredient) => ingredient.active || selectedIngredientIds.has(ingredient.id),
+  );
   const preview = useMemo(() => {
     try {
       const parsed = parseSheetDraft(sheet, availableIngredients);
@@ -509,10 +573,6 @@ function ProductEditor({
           error={form.formState.errors.sellingPrice?.message}
           placeholder="32,90"
         />
-        <label className="flex items-end gap-2 pb-2 text-sm">
-          <input type="checkbox" {...form.register("active")} />
-          Ativo
-        </label>
         <div className="space-y-2 md:col-span-2">
           <Label htmlFor={`${title}-description`}>Descricao opcional</Label>
           <Textarea id={`${title}-description`} {...form.register("description")} />
@@ -625,22 +685,91 @@ function ProductEditor({
   );
 }
 
+function ProductQuickNav({
+  products,
+  focusedId,
+  onSelect,
+}: {
+  products: ProductRow[];
+  focusedId: string | null;
+  onSelect: (productId: string) => void;
+}) {
+  if (products.length === 0) {
+    return null;
+  }
+
+  return (
+    <aside className="rounded-[22px] border border-[#E2E8F0] bg-white p-4 shadow-sm">
+      <div>
+        <h2 className="text-sm font-extrabold text-[#0F172A]">Produtos cadastrados</h2>
+        <p className="mt-1 text-xs leading-5 text-[#64748B]">
+          Clique para ir direto ao item.
+        </p>
+      </div>
+      <div className="mt-4 flex gap-2 overflow-x-auto pb-1 xl:flex-col xl:overflow-visible xl:pb-0">
+        {products.map((product) => {
+          const isFocused = focusedId === product.id;
+
+          return (
+            <button
+              key={product.id}
+              type="button"
+              onClick={() => onSelect(product.id)}
+              className={`min-w-[210px] rounded-[16px] border p-3 text-left transition xl:min-w-0 ${
+                isFocused
+                  ? "border-[#F97316] bg-[#FFF7ED] ring-2 ring-[#F97316]/15"
+                  : "border-[#E2E8F0] bg-white hover:border-[#F97316]/40 hover:bg-[#FFF7ED]/40"
+              }`}
+            >
+              <span className="block truncate text-sm font-bold text-[#0F172A]">
+                {product.name}
+              </span>
+              <span className="mt-1 flex items-center justify-between gap-3 text-xs">
+                <span className="font-semibold text-[#64748B]">
+                  {formatCurrency(product.selling_price)}
+                </span>
+                <span
+                  className={`rounded-full px-2 py-0.5 font-bold ${
+                    product.active
+                      ? "bg-[#F0FDF4] text-[#16A34A]"
+                      : "bg-slate-100 text-[#64748B]"
+                  }`}
+                >
+                  {product.active ? "Ativo" : "Inativo"}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </aside>
+  );
+}
+
 function ProductCard({
   product,
+  businessId,
+  businessName,
+  businessLogoUrl,
   ingredients,
   fixedCostPercentage,
   pricingSettings,
   isFocused,
   onEdit,
-  onToggleActive,
+  onArchive,
+  onImageUploaded,
 }: {
   product: ProductRow;
+  businessId: string;
+  businessName: string;
+  businessLogoUrl: string | null;
   ingredients: IngredientOption[];
   fixedCostPercentage: number | null;
   pricingSettings: PricingSettings;
   isFocused: boolean;
   onEdit: () => void;
-  onToggleActive: () => void;
+  onArchive: () => void;
+  onImageUploaded: (imageUrl: string) => void;
 }) {
   const sheetItems = buildTechnicalSheetItems(product.technicalSheet, ingredients);
   const baseCost = calculateProductBaseCost(sheetItems);
@@ -671,29 +800,40 @@ function ProductCard({
   return (
     <article
       id={`product-${product.id}`}
-      className={`rounded-lg border bg-background p-4 ${
-        isFocused ? "border-foreground shadow-sm ring-2 ring-foreground/10" : ""
+      className={`scroll-mt-8 rounded-[22px] border bg-white p-4 shadow-sm transition ${
+        isFocused ? "border-[#F97316] ring-2 ring-[#F97316]/15" : "border-[#E2E8F0]"
       }`}
     >
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-lg font-semibold">{product.name}</h2>
-            <span className="rounded-md border px-2 py-1 text-xs">
-              {product.active ? "Ativo" : "Inativo"}
-            </span>
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="flex min-w-0 flex-col gap-4 sm:flex-row">
+          <MenuImageUpload
+            businessId={businessId}
+            itemId={product.id}
+            itemType="products"
+            itemName={product.name}
+            initialImageUrl={product.image_url}
+            onUploaded={onImageUploaded}
+          />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-semibold">{product.name}</h2>
+              <span className="rounded-md border px-2 py-1 text-xs">
+                {product.active ? "Ativo" : "Inativo"}
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {[product.category, product.description].filter(Boolean).join(" - ") ||
+                "Sem categoria"}
+            </p>
           </div>
-          <p className="text-sm text-muted-foreground">
-            {[product.category, product.description].filter(Boolean).join(" - ") ||
-              "Sem categoria"}
-          </p>
         </div>
         <div className="flex gap-2">
-          <Button type="button" variant="outline" onClick={onToggleActive}>
-            {product.active ? "Desativar" : "Ativar"}
-          </Button>
           <Button type="button" variant="outline" onClick={onEdit}>
             <Pencil />
+          </Button>
+          <Button type="button" variant="destructive" onClick={onArchive}>
+            <Trash2 />
+            Excluir
           </Button>
         </div>
       </div>
@@ -718,11 +858,25 @@ function ProductCard({
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <PricingPanel
-          title="Canal proprio"
+          title="Canal próprio"
           margin={ownMargin}
           suggested={ownSuggested}
+          thumbnail={{
+            src: businessLogoUrl,
+            alt: `Logo de ${businessName}`,
+            fallback: getInitials(businessName),
+          }}
         />
-        <PricingPanel title="iFood" margin={ifoodMargin} suggested={ifoodSuggested} />
+        <PricingPanel
+          title="iFood"
+          margin={ifoodMargin}
+          suggested={ifoodSuggested}
+          thumbnail={{
+            src: "/channel-icons/ifood.png",
+            alt: "iFood",
+            fallback: "IF",
+          }}
+        />
       </div>
 
       <div className="mt-4 overflow-hidden rounded-lg border">
@@ -774,14 +928,23 @@ function PricingPanel({
   title,
   margin,
   suggested,
+  thumbnail,
 }: {
   title: string;
   margin: MarginResult;
   suggested: SuggestedPriceResult;
+  thumbnail: {
+    src: string | null;
+    alt: string;
+    fallback: string;
+  };
 }) {
   return (
     <div className="rounded-lg border p-4">
-      <h3 className="font-medium">{title}</h3>
+      <div className="flex items-center gap-3">
+        <ChannelThumbnail {...thumbnail} />
+        <h3 className="font-medium">{title}</h3>
+      </div>
       {margin.status === "neutral" ? (
         <p className="mt-3 text-sm text-muted-foreground">{margin.reason}</p>
       ) : (
@@ -815,6 +978,33 @@ function PricingPanel({
         ) : null}
       </div>
     </div>
+  );
+}
+
+function ChannelThumbnail({
+  src,
+  alt,
+  fallback,
+}: {
+  src: string | null;
+  alt: string;
+  fallback: string;
+}) {
+  const [imageFailed, setImageFailed] = useState(false);
+
+  return (
+    <span className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#E2E8F0] bg-[#F8FAFC] text-xs font-extrabold text-[#64748B]">
+      <span aria-hidden="true">{fallback}</span>
+      {src && !imageFailed ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt={alt}
+          className="absolute inset-0 size-full object-cover"
+          onError={() => setImageFailed(true)}
+        />
+      ) : null}
+    </span>
   );
 }
 
@@ -947,4 +1137,17 @@ function getDiagnosisText(margin: MarginResult, desiredProfitMargin: number) {
   };
 
   return labels[diagnosis];
+}
+
+function scrollToProduct(productId: string) {
+  document
+    .getElementById(`product-${productId}`)
+    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function updateFocusUrl(route: "products", itemId: string) {
+  const url = new URL(window.location.href);
+  url.pathname = `/${route}`;
+  url.searchParams.set("focus", itemId);
+  window.history.replaceState(null, "", `${url.pathname}?${url.searchParams.toString()}`);
 }

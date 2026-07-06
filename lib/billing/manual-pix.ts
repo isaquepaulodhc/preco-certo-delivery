@@ -2,7 +2,7 @@ import {
   calculateNextPaidUntil,
   type SubscriptionAccessLike,
 } from "@/lib/auth/subscriptions";
-import { assertBillingPlan } from "@/lib/billing/plans";
+import { assertBillingPlan, type BillingPlanCode } from "@/lib/billing/plans";
 
 export type PaymentRequestStatus =
   | "pending"
@@ -39,15 +39,19 @@ export function buildManualPixPaymentRequest(planCode: string) {
     planCode: plan.code,
     planName: plan.name,
     amount: plan.price,
+    durationDays: plan.durationDays,
+    cycleLabel: plan.cycleLabel,
     status: "pending" as const,
   };
 }
 
 export function approveManualPixPaymentRequest({
+  planCode,
   requestStatus,
   currentSubscription,
   today,
 }: {
+  planCode: BillingPlanCode;
   requestStatus: PaymentRequestStatus;
   currentSubscription: SubscriptionAccessLike | null | undefined;
   today: string | Date;
@@ -56,8 +60,14 @@ export function approveManualPixPaymentRequest({
     throw new Error("Apenas solicitacoes pendentes podem ser aprovadas.");
   }
 
+  const plan = assertBillingPlan(planCode);
+
   return {
     status: "active" as const,
-    paid_until: calculateNextPaidUntil(currentSubscription, today, 30),
+    paid_until: calculateNextPaidUntil(
+      currentSubscription,
+      today,
+      plan.durationDays,
+    ),
   };
 }

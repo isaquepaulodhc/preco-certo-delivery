@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -36,6 +36,7 @@ export type IngredientRow = {
 };
 
 type IngredientsManagerProps = {
+  businessId: string;
   initialIngredients: IngredientRow[];
 };
 
@@ -51,7 +52,10 @@ const defaultValues: IngredientInput = {
   active: true,
 };
 
-export function IngredientsManager({ initialIngredients }: IngredientsManagerProps) {
+export function IngredientsManager({
+  businessId,
+  initialIngredients,
+}: IngredientsManagerProps) {
   const [ingredients, setIngredients] = useState(initialIngredients);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -125,21 +129,37 @@ export function IngredientsManager({ initialIngredients }: IngredientsManagerPro
     });
   }
 
-  async function setActive(ingredient: IngredientRow, active: boolean) {
-    await saveIngredient(
-      {
-        name: ingredient.name,
-        category: ingredient.category ?? "",
-        supplier: ingredient.supplier ?? "",
-        purchasePrice: String(ingredient.purchase_price),
-        purchaseQuantity: String(ingredient.purchase_quantity),
-        purchaseUnit: ingredient.purchase_unit,
-        usageUnit: ingredient.usage_unit,
-        correctionFactor: String(ingredient.correction_factor),
-        active,
-      },
-      ingredient.id,
+  async function archiveIngredient(ingredient: IngredientRow) {
+    const confirmed = window.confirm(
+      "Este ingrediente será removido da listagem principal e não poderá ser usado em novas fichas técnicas. O histórico será preservado. Deseja continuar?",
     );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setMessage(null);
+    setError(null);
+
+    const supabase = createClient();
+    const { error: updateError } = await supabase
+      .from("ingredients")
+      .update({
+        active: false,
+        deleted_at: new Date().toISOString(),
+      })
+      .eq("id", ingredient.id)
+      .eq("business_id", businessId);
+
+    if (updateError) {
+      setError("Nao foi possivel excluir o ingrediente.");
+      return;
+    }
+
+    setIngredients((current) =>
+      current.filter((item) => item.id !== ingredient.id),
+    );
+    setMessage("Ingrediente removido da listagem principal. O histórico foi preservado.");
   }
 
   return (
@@ -218,16 +238,17 @@ export function IngredientsManager({ initialIngredients }: IngredientsManagerPro
                         <Button
                           type="button"
                           variant="outline"
-                          onClick={() => setActive(ingredient, !ingredient.active)}
-                        >
-                          {ingredient.active ? "Desativar" : "Ativar"}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
                           onClick={() => startEditing(ingredient)}
                         >
                           <Pencil />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          onClick={() => archiveIngredient(ingredient)}
+                        >
+                          <Trash2 />
+                          Excluir
                         </Button>
                       </div>
                     </td>
@@ -340,10 +361,6 @@ function IngredientForm({
           error={form.formState.errors.correctionFactor?.message}
           placeholder="1,00"
         />
-        <label className="flex items-end gap-2 pb-2 text-sm">
-          <input type="checkbox" {...form.register("active")} />
-          Ativo
-        </label>
       </div>
 
       <p className="mt-3 text-xs text-muted-foreground">

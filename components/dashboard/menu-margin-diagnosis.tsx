@@ -14,23 +14,23 @@ const diagnosisView: Record<
   { title: string; description: string; emptyText: string }
 > = {
   loss: {
-    title: "Itens em prejuizo",
-    description: "Itens ativos com lucro liquido estimado menor ou igual a zero.",
-    emptyText: "Nenhum item avaliavel em prejuizo.",
+    title: "Itens em prejuízo",
+    description: "Itens ativos com lucro líquido estimado menor ou igual a zero.",
+    emptyText: "Nenhum item avaliável em prejuízo.",
   },
   attention: {
-    title: "Itens em atencao",
-    description: "Itens avaliaveis abaixo da margem desejada.",
-    emptyText: "Nenhum item avaliavel abaixo da margem desejada.",
+    title: "Itens em atenção",
+    description: "Itens avaliáveis abaixo da margem desejada.",
+    emptyText: "Nenhum item avaliável abaixo da margem desejada.",
   },
   healthy: {
-    title: "Itens saudaveis",
-    description: "Itens avaliaveis com margem liquida estimada dentro da meta.",
-    emptyText: "Nenhum item saudavel ainda.",
+    title: "Itens saudáveis",
+    description: "Itens avaliáveis com margem líquida estimada dentro da meta.",
+    emptyText: "Nenhum item saudável ainda.",
   },
   incomplete: {
     title: "Dados incompletos",
-    description: "Itens ativos que nao podem ser avaliados sem custo, preco ou faturamento medio.",
+    description: "Itens ativos que não podem ser avaliados sem custo, preço ou faturamento médio.",
     emptyText: "Nenhum item ativo com dados incompletos.",
   },
 };
@@ -40,11 +40,11 @@ export function MenuMarginDiagnosis({ report, activeFilter }: MenuMarginDiagnosi
   const items = getItemsByFilter(report, activeFilter);
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-sm">
+    <section className="overflow-hidden rounded-[24px] border border-[#E2E8F0] bg-white shadow-sm">
       <div className="border-b border-[#E2E8F0] px-5 py-4">
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
-            <h3 className="text-lg font-bold text-[#0F172A]">{view.title}</h3>
+            <h3 className="text-lg font-extrabold text-[#0F172A]">{view.title}</h3>
             <p className="mt-1 text-sm text-[#64748B]">{view.description}</p>
           </div>
           <span className="w-fit rounded-full bg-[#F8FAFC] px-3 py-1 text-sm font-semibold text-[#64748B]">
@@ -62,14 +62,14 @@ export function MenuMarginDiagnosis({ report, activeFilter }: MenuMarginDiagnosi
                 <th className="p-3 font-medium">Item</th>
                 <th className="p-3 font-medium">Tipo</th>
                 <th className="p-3 font-medium">Status</th>
-                <th className="p-3 font-medium">Preco atual</th>
+                <th className="p-3 font-medium">Preço atual</th>
                 <th className="p-3 font-medium">Custo seguro</th>
-                <th className="p-3 font-medium">Margem liquida</th>
-                <th className="p-3 font-medium">Sugerido proprio</th>
+                <th className="p-3 font-medium">Margem líquida</th>
+                <th className="p-3 font-medium">Sugerido próprio</th>
                 <th className="p-3 font-medium">Sugerido iFood</th>
                 <th className="p-3 font-medium">Dif.</th>
                 <th className="p-3 font-medium">Motivo</th>
-                <th className="p-3 font-medium">Acoes</th>
+                <th className="p-3 font-medium">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -127,14 +127,14 @@ function DiagnosisRow({ item }: { item: EvaluatedOperationItem }) {
       <td className="p-3">
         <div className="flex flex-wrap gap-2">
           <Link
-            className="rounded-full border border-[#E2E8F0] px-3 py-1.5 text-xs font-semibold text-[#0F172A] transition hover:border-[#F97316]/40 hover:bg-[#FFF7ED] hover:text-[#EA580C]"
+            className="rounded-xl border border-[#E2E8F0] px-3 py-1.5 text-xs font-bold text-[#0F172A] transition hover:border-[#F97316]/40 hover:bg-[#FFF7ED] hover:text-[#EA580C]"
             href={detailHref}
           >
             Abrir
           </Link>
           {item.safeCost == null ? null : (
             <Link
-              className="rounded-full bg-[#F97316] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#EA580C]"
+              className="rounded-xl bg-[#F97316] px-3 py-1.5 text-xs font-bold text-white transition hover:bg-[#EA580C]"
               href={simulatorHref}
             >
               Simular
@@ -168,10 +168,10 @@ function getStatusView(status: EvaluatedOperationItem["status"]) {
     { label: string; className: string }
   > = {
     incomplete: { label: "Incompleto", className: "bg-slate-100 text-[#64748B]" },
-    loss: { label: "Prejuizo", className: "bg-[#FEF2F2] text-[#DC2626]" },
+    loss: { label: "Prejuízo", className: "bg-[#FEF2F2] text-[#DC2626]" },
     danger: { label: "Perigoso", className: "bg-[#FEF2F2] text-[#DC2626]" },
-    warning: { label: "Atencao", className: "bg-[#FFF7ED] text-[#F59E0B]" },
-    healthy: { label: "Saudavel", className: "bg-[#F0FDF4] text-[#16A34A]" },
+    warning: { label: "Atenção", className: "bg-[#FFF7ED] text-[#F59E0B]" },
+    healthy: { label: "Saudável", className: "bg-[#F0FDF4] text-[#16A34A]" },
   };
 
   return labels[status];

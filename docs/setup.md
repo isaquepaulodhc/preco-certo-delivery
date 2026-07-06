@@ -198,7 +198,13 @@ Fluxo previsto:
 - Tela mostra chave PIX e instrucoes.
 - Cliente envia comprovante por WhatsApp ou anexa futuramente.
 - Admin aprova.
-- Sistema ativa assinatura e define `paid_until = hoje + 30 dias`.
+- Sistema ativa assinatura e define `paid_until` conforme o ciclo do plano.
+
+Planos vigentes na Fase 9C:
+
+- Essencial Mensal: R$ 77,00 por 30 dias.
+- Pro Trimestral: R$ 87,00 por 90 dias.
+- Gestao Semestral: R$ 97,00 por 180 dias.
 
 Na implementacao da Fase 8, o fluxo manual usa:
 
@@ -206,6 +212,22 @@ Na implementacao da Fase 8, o fluxo manual usa:
 - Rota administrativa minima: `/admin/payments`.
 - Migration: `supabase/migrations/0005_manual_pix_billing.sql`.
 - RPCs: `create_manual_pix_payment_request`, `approve_payment_request`, `cancel_payment_request`.
+
+Na Fase 9B, a migration `supabase/migrations/0006_profile_uf_and_ux_fields.sql`
+adiciona `businesses.state_uf` para salvar a UF do perfil da loja.
+
+Na Fase 9C, a migration
+`supabase/migrations/0007_plan_durations_menu_images_and_soft_delete.sql`
+atualiza as RPCs de PIX manual para valores/duracoes por plano, adiciona
+`image_url` em produtos e combos, adiciona `deleted_at` para arquivamento
+logico de ingredientes/produtos/combos e cria o bucket publico `menu-images`.
+
+Paths de imagens do cardapio:
+
+```text
+products/{business_id}/{product_id}/image.ext
+combos/{business_id}/{combo_id}/image.ext
+```
 
 Para cadastrar o primeiro admin apos aplicar a migration, crie o usuario normalmente, copie o `auth.users.id` no Supabase e execute:
 

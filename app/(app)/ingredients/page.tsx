@@ -21,6 +21,7 @@ export default async function IngredientsPage() {
     .select(
       "id, name, category, supplier, purchase_price, purchase_quantity, purchase_unit, usage_unit, correction_factor, unit_cost, last_price_update, active",
     )
+    .eq("active", true)
     .eq("business_id", business.id)
     .order("created_at", { ascending: false });
 
@@ -38,7 +39,10 @@ export default async function IngredientsPage() {
           <CardTitle>Lista de ingredientes</CardTitle>
         </CardHeader>
         <CardContent>
-          <IngredientsManager initialIngredients={(ingredients ?? []) as IngredientRow[]} />
+          <IngredientsManager
+            businessId={business.id}
+            initialIngredients={(ingredients ?? []) as IngredientRow[]}
+          />
         </CardContent>
       </Card>
     </AppShell>

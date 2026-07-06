@@ -16,6 +16,7 @@ export type Database = {
           name: string;
           segment: string | null;
           city: string | null;
+          state_uf: string | null;
           whatsapp: string | null;
           business_logo_url: string | null;
           average_monthly_revenue: number;
@@ -39,6 +40,7 @@ export type Database = {
           name: string;
           segment?: string | null;
           city?: string | null;
+          state_uf?: string | null;
           whatsapp?: string | null;
           business_logo_url?: string | null;
           average_monthly_revenue?: number;

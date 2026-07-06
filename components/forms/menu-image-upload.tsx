@@ -5,37 +5,41 @@ import { ImageUp } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
+import { getInitials } from "@/lib/storage/business-logos";
 import {
-  BUSINESS_LOGOS_BUCKET,
-  getBusinessLogoPath,
-  getInitials,
-  MAX_LOGO_FILE_SIZE_BYTES,
-  validateLogoFile,
-} from "@/lib/storage/business-logos";
+  getMenuImagePath,
+  MAX_MENU_IMAGE_FILE_SIZE_BYTES,
+  MENU_IMAGES_BUCKET,
+  type MenuImageType,
+  validateMenuImageFile,
+} from "@/lib/storage/menu-images";
+import { createClient } from "@/lib/supabase/client";
 
-type LogoUploadProps = {
+type MenuImageUploadProps = {
   businessId: string;
-  businessName: string;
-  initialLogoUrl: string | null;
+  itemId: string;
+  itemType: MenuImageType;
+  itemName: string;
+  initialImageUrl: string | null;
   onUploaded: (publicUrl: string) => void;
-  variant?: "default" | "hero";
 };
 
-export function LogoUpload({
+export function MenuImageUpload({
   businessId,
-  businessName,
-  initialLogoUrl,
+  itemId,
+  itemType,
+  itemName,
+  initialImageUrl,
   onUploaded,
-  variant = "default",
-}: LogoUploadProps) {
+}: MenuImageUploadProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const [previewUrl, setPreviewUrl] = useState(initialLogoUrl);
+  const [previewUrl, setPreviewUrl] = useState(initialImageUrl);
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
+
     if (!file) {
       return;
     }
@@ -44,11 +48,16 @@ export function LogoUpload({
     setIsUploading(true);
 
     try {
-      validateLogoFile(file);
+      validateMenuImageFile(file);
       const supabase = createClient();
-      const path = getBusinessLogoPath(businessId, file);
+      const path = getMenuImagePath({
+        itemType,
+        businessId,
+        itemId,
+        file,
+      });
       const { error: uploadError } = await supabase.storage
-        .from(BUSINESS_LOGOS_BUCKET)
+        .from(MENU_IMAGES_BUCKET)
         .upload(path, file, {
           cacheControl: "3600",
           upsert: true,
@@ -60,12 +69,13 @@ export function LogoUpload({
 
       const {
         data: { publicUrl },
-      } = supabase.storage.from(BUSINESS_LOGOS_BUCKET).getPublicUrl(path);
+      } = supabase.storage.from(MENU_IMAGES_BUCKET).getPublicUrl(path);
 
       const { error: updateError } = await supabase
-        .from("businesses")
-        .update({ business_logo_url: publicUrl })
-        .eq("id", businessId);
+        .from(itemType)
+        .update({ image_url: publicUrl })
+        .eq("id", itemId)
+        .eq("business_id", businessId);
 
       if (updateError) {
         throw updateError;
@@ -77,40 +87,22 @@ export function LogoUpload({
       setError(
         uploadError instanceof Error
           ? uploadError.message
-          : "Nao foi possivel enviar a logo.",
+          : "Nao foi possivel enviar a imagem.",
       );
     } finally {
       setIsUploading(false);
+
       if (inputRef.current) {
         inputRef.current.value = "";
       }
     }
   }
 
-  const isHero = variant === "hero";
-  const imageClassName = isHero
-    ? "size-28 rounded-[28px] border border-white object-cover shadow-xl shadow-orange-500/20"
-    : "size-20 rounded-lg border object-cover";
-  const fallbackClassName = isHero
-    ? "flex size-28 items-center justify-center rounded-[28px] border border-white bg-white text-3xl font-extrabold text-[#F97316] shadow-xl shadow-orange-500/20"
-    : "flex size-20 items-center justify-center rounded-lg border bg-muted text-xl font-semibold";
-
   return (
-    <div className={isHero ? "space-y-4" : "space-y-3"}>
-      <div className={isHero ? "flex flex-col items-center gap-4" : "flex items-center gap-4"}>
-        {previewUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={previewUrl}
-            alt={`Logo de ${businessName}`}
-            className={imageClassName}
-          />
-        ) : (
-          <div className={fallbackClassName}>
-            {getInitials(businessName)}
-          </div>
-        )}
-        <div className={isHero ? "space-y-2 text-center" : "space-y-2"}>
+    <div className="space-y-3">
+      <div className="flex items-center gap-3">
+        <MenuImagePreview imageUrl={previewUrl} name={itemName} />
+        <div className="space-y-2">
           <input
             ref={inputRef}
             type="file"
@@ -125,10 +117,10 @@ export function LogoUpload({
             disabled={isUploading}
           >
             <ImageUp />
-            {isUploading ? "Enviando..." : "Enviar logo"}
+            {isUploading ? "Enviando..." : "Imagem"}
           </Button>
           <p className="text-xs text-muted-foreground">
-            JPG, PNG ou WEBP ate {MAX_LOGO_FILE_SIZE_BYTES / 1024 / 1024} MB.
+            JPG, PNG ou WEBP até {MAX_MENU_IMAGE_FILE_SIZE_BYTES / 1024 / 1024} MB.
           </p>
         </div>
       </div>
@@ -139,5 +131,30 @@ export function LogoUpload({
         </Alert>
       ) : null}
     </div>
+  );
+}
+
+function MenuImagePreview({
+  imageUrl,
+  name,
+}: {
+  imageUrl: string | null;
+  name: string;
+}) {
+  const [imageFailed, setImageFailed] = useState(false);
+
+  return (
+    <span className="relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-[18px] border border-[#E2E8F0] bg-[#FFF7ED] text-lg font-extrabold text-[#F97316]">
+      <span aria-hidden="true">{getInitials(name)}</span>
+      {imageUrl && !imageFailed ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={imageUrl}
+          alt={`Imagem de ${name}`}
+          className="absolute inset-0 size-full object-cover"
+          onError={() => setImageFailed(true)}
+        />
+      ) : null}
+    </span>
   );
 }

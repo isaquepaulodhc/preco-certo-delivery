@@ -51,7 +51,7 @@ const statusLabels: Record<string, string> = {
   expired: "Expirada",
   blocked: "Bloqueada",
   cancelled: "Cancelada",
-  missing: "Nao encontrada",
+  missing: "Não encontrada",
 };
 
 export default async function BillingPage() {
@@ -102,34 +102,34 @@ export default async function BillingPage() {
 
   return (
     <AppShell businessName={business.name} businessLogoUrl={business.business_logo_url}>
-      <section className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+      <section className="mb-6 flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#F97316]">
             Assinatura
           </p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-[#0F172A] md:text-4xl">
+          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#0F172A] md:text-[34px]">
             Planos e pagamento via PIX
           </h1>
           <p className="mt-2 max-w-2xl text-base text-[#64748B]">
             Regularize o acesso da sua loja com pagamento manual e aprovacao segura.
           </p>
         </div>
-        <span className={`inline-flex w-fit items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${statusView.className}`}>
+        <span className={`inline-flex w-fit items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold ${statusView.className}`}>
           <StatusIcon className="size-4" />
           {pendingRequest ? "Pagamento pendente" : statusLabels[effectiveStatus]}
         </span>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-        <Card className="rounded-2xl border-[#E2E8F0] bg-white shadow-sm">
+      <section className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+        <Card className="rounded-[24px] border-[#E2E8F0] bg-white shadow-sm">
           <CardHeader>
             <div className="flex items-center gap-3">
-              <span className="flex size-12 items-center justify-center rounded-2xl bg-[#F0FDF4] text-[#16A34A]">
+              <span className="flex size-12 items-center justify-center rounded-[20px] bg-[#F0FDF4] text-[#16A34A]">
                 <ShieldCheck className="size-5" />
               </span>
               <div>
                 <CardTitle>Status da assinatura</CardTitle>
-                <p className="mt-1 text-sm text-[#64748B]">Acesso atual do negocio.</p>
+                <p className="mt-1 text-sm text-[#64748B]">Acesso atual do negócio.</p>
               </div>
             </div>
           </CardHeader>
@@ -139,15 +139,15 @@ export default async function BillingPage() {
               value={pendingRequest ? "Pagamento pendente" : statusLabels[effectiveStatus]}
             />
             <InfoTile label="Plano atual" value={currentPlan?.name ?? subscription?.plan ?? "Trial"} />
-            <InfoTile label="Pago ate" value={subscription?.paid_until ?? "nao informado"} />
+            <InfoTile label="Pago até" value={subscription?.paid_until ?? "não informado"} />
             <InfoTile label="Dias restantes" value={String(remainingDays)} />
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border-[#E2E8F0] bg-white shadow-sm">
+        <Card className="rounded-[24px] border-[#E2E8F0] bg-white shadow-sm">
           <CardHeader>
             <div className="flex items-center gap-3">
-              <span className="flex size-12 items-center justify-center rounded-2xl bg-[#FFF7ED] text-[#F97316]">
+              <span className="flex size-12 items-center justify-center rounded-[20px] bg-[#FFF7ED] text-[#F97316]">
                 <QrCode className="size-5" />
               </span>
               <div>
@@ -168,24 +168,24 @@ export default async function BillingPage() {
               strong
             />
             <p className="rounded-2xl bg-[#FFF7ED] p-3 text-[#9A3412]">
-              O acesso so e renovado depois da aprovacao manual do pagamento.
+              O acesso só é renovado depois da aprovação manual do pagamento.
             </p>
           </CardContent>
         </Card>
       </section>
 
       {pendingRequest ? (
-        <section className="mt-6 rounded-2xl border border-[#FDBA74] bg-[#FFF7ED] p-5 shadow-sm">
+        <section className="mt-5 rounded-[24px] border border-[#FDBA74] bg-[#FFF7ED] p-6 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#F97316]">
                 Pagamento pendente
               </p>
               <h2 className="mt-2 text-2xl font-bold text-[#0F172A]">
-                Codigo {pendingRequest.payment_code}
+                Código {pendingRequest.payment_code}
               </h2>
               <p className="mt-2 text-sm text-[#64748B]">
-                Faca o PIX, use o codigo de referencia no comprovante e aguarde a aprovacao manual.
+                Faça o PIX, use o código de referência no comprovante e aguarde a aprovação manual.
               </p>
             </div>
             <span className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#F97316]">
@@ -196,27 +196,31 @@ export default async function BillingPage() {
             <InfoTile label="Plano" value={pendingPlan?.name ?? pendingRequest.plan} />
             <InfoTile label="Valor" value={formatCurrency(pendingRequest.amount)} strong />
             <InfoTile
+              label="Acesso"
+              value={pendingPlan?.accessLabel ?? "Periodo conforme plano"}
+            />
+            <InfoTile
               label="Criado em"
               value={new Date(pendingRequest.created_at).toLocaleString("pt-BR")}
             />
           </div>
           <Alert className="mt-4 border-[#F97316]/30 bg-white text-[#9A3412]">
             <AlertDescription>
-              Pedido pendente nao libera acesso por si so. A assinatura so muda apos aprovacao administrativa.
+              Pedido pendente não libera acesso por si só. A assinatura só muda após aprovação administrativa.
             </AlertDescription>
           </Alert>
         </section>
       ) : null}
 
-      <section className="mt-6 grid gap-4 md:grid-cols-3">
+      <section className="mt-5 grid gap-5 md:grid-cols-3">
         {BILLING_PLANS.map((plan) => (
           <Card
             key={plan.code}
-            className="rounded-2xl border-[#E2E8F0] bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
+            className="rounded-[24px] border-[#E2E8F0] bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
           >
             <CardHeader>
               <div className="flex items-center justify-between gap-3">
-                <span className="flex size-11 items-center justify-center rounded-2xl bg-[#FFF7ED] text-[#F97316]">
+                <span className="flex size-11 items-center justify-center rounded-[18px] bg-[#FFF7ED] text-[#F97316]">
                   <CreditCard className="size-5" />
                 </span>
                 <span className="rounded-full bg-[#F8FAFC] px-3 py-1 text-xs font-semibold text-[#64748B]">
@@ -230,13 +234,23 @@ export default async function BillingPage() {
                 <p className="text-4xl font-bold tracking-tight text-[#0F172A]">
                   {formatCurrency(plan.price)}
                 </p>
-                <p className="mt-1 text-sm text-[#64748B]">Plano mensal via PIX manual.</p>
+                <p className="mt-1 text-sm font-semibold text-[#0F172A]">
+                  {plan.billingLabel}
+                </p>
+                <p className="mt-1 text-sm text-[#64748B]">
+                  Valor total do ciclo. {plan.accessLabel}.
+                </p>
+                {plan.monthlyEquivalentLabel ? (
+                  <p className="mt-1 text-xs font-semibold text-[#16A34A]">
+                    {plan.monthlyEquivalentLabel}
+                  </p>
+                ) : null}
               </div>
               <form action={requestManualPixPayment}>
                 <input type="hidden" name="planCode" value={plan.code} />
                 <Button
                   type="submit"
-                  className="w-full bg-[#F97316] text-white hover:bg-[#EA580C]"
+                  className="w-full rounded-xl bg-[#F97316] font-bold text-white shadow-lg shadow-orange-500/20 hover:bg-[#EA580C]"
                   disabled={Boolean(pendingRequest)}
                 >
                   Solicitar pagamento via PIX
@@ -260,7 +274,7 @@ function InfoTile({
   strong?: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-3">
+    <div className="rounded-[18px] border border-[#E2E8F0] bg-[#F8FAFC] p-3.5">
       <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#64748B]">
         {label}
       </p>

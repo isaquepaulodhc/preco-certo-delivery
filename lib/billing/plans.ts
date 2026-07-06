@@ -1,18 +1,35 @@
 export const BILLING_PLANS = [
   {
     code: "essential",
-    name: "Essencial",
-    price: 39,
+    name: "Essencial Mensal",
+    shortName: "Essencial",
+    price: 77,
+    durationDays: 30,
+    cycleLabel: "Mensal",
+    billingLabel: "R$ 77 por mês",
+    accessLabel: "30 dias de acesso",
   },
   {
     code: "pro",
-    name: "Pro",
-    price: 79,
+    name: "Pro Trimestral",
+    shortName: "Pro",
+    price: 87,
+    durationDays: 90,
+    cycleLabel: "Trimestral",
+    billingLabel: "R$ 87 a cada 3 meses",
+    accessLabel: "90 dias de acesso",
+    monthlyEquivalentLabel: "Equivalente a R$ 29/mês",
   },
   {
     code: "management",
-    name: "Gestao",
-    price: 149,
+    name: "Gestão Semestral",
+    shortName: "Gestão",
+    price: 97,
+    durationDays: 180,
+    cycleLabel: "Semestral",
+    billingLabel: "R$ 97 a cada 6 meses",
+    accessLabel: "180 dias de acesso",
+    monthlyEquivalentLabel: "Equivalente a aproximadamente R$ 16,17/mês",
   },
 ] as const;
 
@@ -35,4 +52,8 @@ export function assertBillingPlan(code: string | null | undefined) {
 
 export function getOfficialPlanAmount(code: string | null | undefined) {
   return assertBillingPlan(code).price;
+}
+
+export function getPlanDurationDays(code: string | null | undefined) {
+  return assertBillingPlan(code).durationDays;
 }

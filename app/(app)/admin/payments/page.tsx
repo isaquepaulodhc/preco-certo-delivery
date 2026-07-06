@@ -105,7 +105,14 @@ export default async function AdminPaymentsPage() {
                             {getBusinessName(request.businesses) ?? request.business_id}
                           </td>
                           <td className="p-3">{request.requested_by}</td>
-                          <td className="p-3">{plan?.name ?? request.plan}</td>
+                          <td className="p-3">
+                            <div className="font-medium">{plan?.name ?? request.plan}</div>
+                            {plan ? (
+                              <div className="text-xs text-muted-foreground">
+                                {plan.accessLabel}
+                              </div>
+                            ) : null}
+                          </td>
                           <td className="p-3">{formatCurrency(request.amount)}</td>
                           <td className="p-3">
                             {new Date(request.created_at).toLocaleString("pt-BR")}

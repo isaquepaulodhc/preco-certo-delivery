@@ -8,7 +8,6 @@ import {
   type ProductRow,
 } from "@/components/forms/products-manager";
 import { AppShell } from "@/components/layout/app-shell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type PricingSettings } from "@/lib/calculations/pricing";
 import { createClient } from "@/lib/supabase/server";
 
@@ -41,8 +40,9 @@ export default async function ProductsPage({
   ] = await Promise.all([
     supabase
       .from("products")
-      .select("id, name, category, description, selling_price, active")
+      .select("id, name, category, description, image_url, selling_price, active")
       .eq("business_id", business.id)
+      .eq("active", true)
       .order("created_at", { ascending: false }),
     supabase
       .from("product_ingredients")
@@ -82,28 +82,26 @@ export default async function ProductsPage({
 
   return (
     <AppShell businessName={business.name} businessLogoUrl={business.business_logo_url}>
-      <div className="mb-6">
-        <p className="text-sm text-muted-foreground">Produtos</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">
+      <div className="mb-6 max-w-3xl">
+        <p className="text-sm font-semibold text-[#F97316]">Produtos</p>
+        <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#0F172A]">
           Monte fichas tecnicas e precos sugeridos
         </h1>
+        <p className="mt-2 text-sm leading-6 text-[#64748B]">
+          Cadastre produtos, revise fichas e navegue rapidamente entre os itens.
+        </p>
       </div>
 
-      <Card className="rounded-lg">
-        <CardHeader>
-          <CardTitle>Produtos e ficha tecnica</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ProductsManager
-            businessId={business.id}
-            initialProducts={productRows}
-            ingredients={(ingredients ?? []) as IngredientOption[]}
-            fixedCosts={(fixedCosts ?? []) as FixedCostSummaryRow[]}
-            pricingSettings={pricingSettings}
-            focusId={params?.focus}
-          />
-        </CardContent>
-      </Card>
+      <ProductsManager
+        businessId={business.id}
+        initialProducts={productRows}
+        ingredients={(ingredients ?? []) as IngredientOption[]}
+        fixedCosts={(fixedCosts ?? []) as FixedCostSummaryRow[]}
+        pricingSettings={pricingSettings}
+        focusId={params?.focus}
+        businessName={business.name}
+        businessLogoUrl={business.business_logo_url}
+      />
     </AppShell>
   );
 }

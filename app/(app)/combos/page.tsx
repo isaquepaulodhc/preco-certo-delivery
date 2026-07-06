@@ -8,7 +8,6 @@ import {
   type FixedCostSummaryRow,
 } from "@/components/forms/combos-manager";
 import { AppShell } from "@/components/layout/app-shell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { calculateProductBaseCost, calculateProductSafeCost } from "@/lib/calculations/products";
 import { type PricingSettings } from "@/lib/calculations/pricing";
 import { type Unit } from "@/lib/calculations/units";
@@ -65,8 +64,9 @@ export default async function CombosPage({
   ] = await Promise.all([
     supabase
       .from("combos")
-      .select("id, name, category, description, selling_price, active")
+      .select("id, name, category, description, image_url, selling_price, active")
       .eq("business_id", business.id)
+      .eq("active", true)
       .order("created_at", { ascending: false }),
     supabase
       .from("combo_items")
@@ -149,28 +149,26 @@ export default async function CombosPage({
 
   return (
     <AppShell businessName={business.name} businessLogoUrl={business.business_logo_url}>
-      <div className="mb-6">
-        <p className="text-sm text-muted-foreground">Combos</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">
+      <div className="mb-6 max-w-3xl">
+        <p className="text-sm font-semibold text-[#F97316]">Combos</p>
+        <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#0F172A]">
           Monte combos e compare margem por canal
         </h1>
+        <p className="mt-2 text-sm leading-6 text-[#64748B]">
+          Combine produtos, confira preço avulso e navegue rapidamente entre combos.
+        </p>
       </div>
 
-      <Card className="rounded-lg">
-        <CardHeader>
-          <CardTitle>Combos e produtos</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <CombosManager
-            businessId={business.id}
-            initialCombos={comboRows}
-            products={productOptions as ComboProductOption[]}
-            fixedCosts={(fixedCosts ?? []) as FixedCostSummaryRow[]}
-            pricingSettings={pricingSettings}
-            focusId={params?.focus}
-          />
-        </CardContent>
-      </Card>
+      <CombosManager
+        businessId={business.id}
+        initialCombos={comboRows}
+        products={productOptions as ComboProductOption[]}
+        fixedCosts={(fixedCosts ?? []) as FixedCostSummaryRow[]}
+        pricingSettings={pricingSettings}
+        focusId={params?.focus}
+        businessName={business.name}
+        businessLogoUrl={business.business_logo_url}
+      />
     </AppShell>
   );
 }

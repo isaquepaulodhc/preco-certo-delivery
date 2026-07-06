@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Pencil, Plus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { MenuImageUpload } from "@/components/forms/menu-image-upload";
 import {
   assertComboProductsHaveCost,
   assertNoDuplicateComboProducts,
@@ -36,6 +37,7 @@ import {
   type PricingSettings,
   type SuggestedPriceResult,
 } from "@/lib/calculations/pricing";
+import { getInitials } from "@/lib/storage/business-logos";
 import { createClient } from "@/lib/supabase/client";
 import { comboSchema, type ComboInput } from "@/lib/validations/combos";
 
@@ -44,6 +46,7 @@ export type ComboRow = {
   name: string;
   category: string | null;
   description: string | null;
+  image_url: string | null;
   selling_price: number;
   active: boolean;
   items: ComboItemRow[];
@@ -76,6 +79,8 @@ type CombosManagerProps = {
   fixedCosts: FixedCostSummaryRow[];
   pricingSettings: PricingSettings;
   focusId?: string;
+  businessName: string;
+  businessLogoUrl: string | null;
 };
 
 type ComboDraftItem = {
@@ -103,9 +108,12 @@ export function CombosManager({
   fixedCosts,
   pricingSettings,
   focusId,
+  businessName,
+  businessLogoUrl,
 }: CombosManagerProps) {
   const [combos, setCombos] = useState(initialCombos);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [focusedId, setFocusedId] = useState<string | null>(focusId ?? null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -121,6 +129,21 @@ export function CombosManager({
 
     return { total, percentage };
   }, [fixedCosts, pricingSettings.averageMonthlyRevenue, pricingSettings.ifoodMonthlyFee]);
+  const hasActiveProducts = products.some((product) => product.active);
+
+  useEffect(() => {
+    if (!focusId) {
+      return;
+    }
+
+    window.setTimeout(() => scrollToCombo(focusId), 0);
+  }, [focusId, combos.length]);
+
+  function focusCombo(comboId: string) {
+    setFocusedId(comboId);
+    updateFocusUrl("combos", comboId);
+    scrollToCombo(comboId);
+  }
 
   async function saveCombo(
     values: ComboInput,
@@ -167,12 +190,12 @@ export function CombosManager({
           .update(comboPayload)
           .eq("id", comboId)
           .eq("business_id", businessId)
-          .select("id, name, category, description, selling_price, active")
+          .select("id, name, category, description, image_url, selling_price, active")
           .single()
       : supabase
           .from("combos")
           .insert(comboPayload)
-          .select("id, name, category, description, selling_price, active")
+          .select("id, name, category, description, image_url, selling_price, active")
           .single();
 
     const { data: savedCombo, error: comboError } = await comboQuery;
@@ -188,11 +211,15 @@ export function CombosManager({
       items: itemsResult.rows,
     };
 
-    setCombos((current) =>
-      comboId
+    setCombos((current) => {
+      if (!row.active) {
+        return current.filter((combo) => combo.id !== row.id);
+      }
+
+      return comboId
         ? current.map((combo) => (combo.id === comboId ? row : combo))
-        : [row, ...current],
-    );
+        : [row, ...current];
+    });
     setEditingId(null);
 
     if (itemsResult.errorMessage) {
@@ -250,31 +277,41 @@ export function CombosManager({
     };
   }
 
-  async function toggleActive(combo: ComboRow) {
-    setError(null);
-    setMessage(null);
-    const supabase = createClient();
-    const { data, error: updateError } = await supabase
-      .from("combos")
-      .update({ active: !combo.active })
-      .eq("id", combo.id)
-      .eq("business_id", businessId)
-      .select("id, name, category, description, selling_price, active")
-      .single();
+  async function archiveCombo(combo: ComboRow) {
+    const confirmed = window.confirm(
+      "Este combo será removido da listagem principal. A composição e o histórico serão preservados. Deseja continuar?",
+    );
 
-    if (updateError) {
-      setError("Nao foi possivel alterar o status do combo.");
+    if (!confirmed) {
       return;
     }
 
+    setError(null);
+    setMessage(null);
+    const supabase = createClient();
+    const { error: updateError } = await supabase
+      .from("combos")
+      .update({
+        active: false,
+        deleted_at: new Date().toISOString(),
+      })
+      .eq("id", combo.id)
+      .eq("business_id", businessId);
+
+    if (updateError) {
+      setError("Nao foi possivel excluir o combo.");
+      return;
+    }
+
+    setCombos((current) => current.filter((item) => item.id !== combo.id));
+    setFocusedId((current) => (current === combo.id ? null : current));
+    setMessage("Combo removido da listagem principal. O histórico foi preservado.");
+  }
+
+  function updateComboImage(comboId: string, imageUrl: string) {
     setCombos((current) =>
-      current.map((item) =>
-        item.id === combo.id
-          ? {
-              ...(data as Omit<ComboRow, "items">),
-              items: item.items,
-            }
-          : item,
+      current.map((combo) =>
+        combo.id === comboId ? { ...combo, image_url: imageUrl } : combo,
       ),
     );
   }
@@ -305,7 +342,7 @@ export function CombosManager({
         </Alert>
       ) : null}
 
-      {products.length === 0 ? (
+      {!hasActiveProducts ? (
         <Alert>
           <AlertDescription>
             Cadastre produtos com ficha tecnica antes de montar combos.
@@ -324,56 +361,80 @@ export function CombosManager({
         </Alert>
       ) : null}
 
-      <ComboEditor
-        products={products}
-        title="Novo combo"
-        submitLabel="Criar combo"
-        defaultValues={emptyComboValues}
-        defaultItems={[]}
-        onSubmit={(values, items) => saveCombo(values, items)}
-      />
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_290px] xl:items-start">
+        <div className="space-y-6">
+          <ComboEditor
+            products={products}
+            title="Novo combo"
+            submitLabel="Criar combo"
+            defaultValues={emptyComboValues}
+            defaultItems={[]}
+            onSubmit={(values, items) => saveCombo(values, items)}
+          />
 
-      <div className="space-y-4">
-        {combos.length === 0 ? (
-          <div className="rounded-lg border bg-background p-8 text-center text-muted-foreground">
-            Cadastre seu primeiro combo para comparar preco avulso, desconto e margem.
+          <div className="xl:hidden">
+            <ComboQuickNav
+              combos={combos}
+              focusedId={focusedId}
+              onSelect={focusCombo}
+            />
           </div>
-        ) : (
-          combos.map((combo) =>
-            editingId === combo.id ? (
-              <ComboEditor
-                key={combo.id}
-                products={products}
-                title="Editar combo"
-                submitLabel="Salvar combo"
-                defaultValues={{
-                  name: combo.name,
-                  category: combo.category ?? "",
-                  description: combo.description ?? "",
-                  sellingPrice: String(combo.selling_price).replace(".", ","),
-                  active: combo.active,
-                }}
-                defaultItems={combo.items.map((item) => ({
-                  productId: item.product_id,
-                  quantity: String(item.quantity).replace(".", ","),
-                }))}
-                onSubmit={(values, items) => saveCombo(values, items, combo.id)}
-                onCancel={() => setEditingId(null)}
-              />
+
+          <div className="space-y-4">
+            {combos.length === 0 ? (
+              <div className="rounded-[22px] border border-[#E2E8F0] bg-white p-8 text-center text-[#64748B] shadow-sm">
+                Cadastre seu primeiro combo para comparar preco avulso, desconto e margem.
+              </div>
             ) : (
-              <ComboCard
-                key={combo.id}
-                combo={combo}
-                products={products}
-                fixedCostPercentage={fixedCostSummary.percentage}
-                pricingSettings={pricingSettings}
-                isFocused={focusId === combo.id}
-                onEdit={() => setEditingId(combo.id)}
-                onToggleActive={() => toggleActive(combo)}
-              />
-            ),
-          )
-        )}
+              combos.map((combo) =>
+                editingId === combo.id ? (
+                  <ComboEditor
+                    key={combo.id}
+                    products={products}
+                    title="Editar combo"
+                    submitLabel="Salvar combo"
+                    defaultValues={{
+                      name: combo.name,
+                      category: combo.category ?? "",
+                      description: combo.description ?? "",
+                      sellingPrice: String(combo.selling_price).replace(".", ","),
+                      active: combo.active,
+                    }}
+                    defaultItems={combo.items.map((item) => ({
+                      productId: item.product_id,
+                      quantity: String(item.quantity).replace(".", ","),
+                    }))}
+                    onSubmit={(values, items) => saveCombo(values, items, combo.id)}
+                    onCancel={() => setEditingId(null)}
+                  />
+                ) : (
+                  <ComboCard
+                    key={combo.id}
+                    combo={combo}
+                    businessId={businessId}
+                    businessName={businessName}
+                    businessLogoUrl={businessLogoUrl}
+                    products={products}
+                    fixedCostPercentage={fixedCostSummary.percentage}
+                    pricingSettings={pricingSettings}
+                    isFocused={focusedId === combo.id}
+                    onEdit={() => setEditingId(combo.id)}
+                    onArchive={() => archiveCombo(combo)}
+                    onImageUploaded={(imageUrl) => updateComboImage(combo.id, imageUrl)}
+                  />
+                ),
+              )
+            )}
+          </div>
+        </div>
+
+        <div className="hidden xl:sticky xl:top-6 xl:block">
+          <ComboQuickNav
+            combos={combos}
+            focusedId={focusedId}
+            onSelect={focusCombo}
+          />
+        </div>
       </div>
     </div>
   );
@@ -403,8 +464,11 @@ function ComboEditor({
   const [items, setItems] = useState(defaultItems);
   const [itemsError, setItemsError] = useState<string | null>(null);
 
+  const selectedProductIds = new Set(items.map((item) => item.productId));
   const availableProducts = products.filter(
-    (product) => product.active && product.safeCost != null,
+    (product) =>
+      (product.active && product.safeCost != null) ||
+      selectedProductIds.has(product.id),
   );
   const blockedProducts = products.filter(
     (product) => product.active && product.safeCost == null,
@@ -499,10 +563,6 @@ function ComboEditor({
           error={form.formState.errors.sellingPrice?.message}
           placeholder="59,90"
         />
-        <label className="flex items-end gap-2 pb-2 text-sm">
-          <input type="checkbox" {...form.register("active")} />
-          Ativo
-        </label>
         <div className="space-y-2 md:col-span-2">
           <Label htmlFor={`${title}-description`}>Descricao opcional</Label>
           <Textarea id={`${title}-description`} {...form.register("description")} />
@@ -621,22 +681,91 @@ function ComboEditor({
   );
 }
 
+function ComboQuickNav({
+  combos,
+  focusedId,
+  onSelect,
+}: {
+  combos: ComboRow[];
+  focusedId: string | null;
+  onSelect: (comboId: string) => void;
+}) {
+  if (combos.length === 0) {
+    return null;
+  }
+
+  return (
+    <aside className="rounded-[22px] border border-[#E2E8F0] bg-white p-4 shadow-sm">
+      <div>
+        <h2 className="text-sm font-extrabold text-[#0F172A]">Combos cadastrados</h2>
+        <p className="mt-1 text-xs leading-5 text-[#64748B]">
+          Clique para ir direto ao combo.
+        </p>
+      </div>
+      <div className="mt-4 flex gap-2 overflow-x-auto pb-1 xl:flex-col xl:overflow-visible xl:pb-0">
+        {combos.map((combo) => {
+          const isFocused = focusedId === combo.id;
+
+          return (
+            <button
+              key={combo.id}
+              type="button"
+              onClick={() => onSelect(combo.id)}
+              className={`min-w-[210px] rounded-[16px] border p-3 text-left transition xl:min-w-0 ${
+                isFocused
+                  ? "border-[#F97316] bg-[#FFF7ED] ring-2 ring-[#F97316]/15"
+                  : "border-[#E2E8F0] bg-white hover:border-[#F97316]/40 hover:bg-[#FFF7ED]/40"
+              }`}
+            >
+              <span className="block truncate text-sm font-bold text-[#0F172A]">
+                {combo.name}
+              </span>
+              <span className="mt-1 flex items-center justify-between gap-3 text-xs">
+                <span className="font-semibold text-[#64748B]">
+                  {formatCurrency(combo.selling_price)}
+                </span>
+                <span
+                  className={`rounded-full px-2 py-0.5 font-bold ${
+                    combo.active
+                      ? "bg-[#F0FDF4] text-[#16A34A]"
+                      : "bg-slate-100 text-[#64748B]"
+                  }`}
+                >
+                  {combo.active ? "Ativo" : "Inativo"}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </aside>
+  );
+}
+
 function ComboCard({
   combo,
+  businessId,
+  businessName,
+  businessLogoUrl,
   products,
   fixedCostPercentage,
   pricingSettings,
   isFocused,
   onEdit,
-  onToggleActive,
+  onArchive,
+  onImageUploaded,
 }: {
   combo: ComboRow;
+  businessId: string;
+  businessName: string;
+  businessLogoUrl: string | null;
   products: ComboProductOption[];
   fixedCostPercentage: number | null;
   pricingSettings: PricingSettings;
   isFocused: boolean;
   onEdit: () => void;
-  onToggleActive: () => void;
+  onArchive: () => void;
+  onImageUploaded: (imageUrl: string) => void;
 }) {
   const metrics = getComboMetrics(combo, products);
   const baseCost = metrics.baseCost;
@@ -676,29 +805,40 @@ function ComboCard({
   return (
     <article
       id={`combo-${combo.id}`}
-      className={`rounded-lg border bg-background p-4 ${
-        isFocused ? "border-foreground shadow-sm ring-2 ring-foreground/10" : ""
+      className={`scroll-mt-8 rounded-[22px] border bg-white p-4 shadow-sm transition ${
+        isFocused ? "border-[#F97316] ring-2 ring-[#F97316]/15" : "border-[#E2E8F0]"
       }`}
     >
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-lg font-semibold">{combo.name}</h2>
-            <span className="rounded-md border px-2 py-1 text-xs">
-              {combo.active ? "Ativo" : "Inativo"}
-            </span>
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="flex min-w-0 flex-col gap-4 sm:flex-row">
+          <MenuImageUpload
+            businessId={businessId}
+            itemId={combo.id}
+            itemType="combos"
+            itemName={combo.name}
+            initialImageUrl={combo.image_url}
+            onUploaded={onImageUploaded}
+          />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-semibold">{combo.name}</h2>
+              <span className="rounded-md border px-2 py-1 text-xs">
+                {combo.active ? "Ativo" : "Inativo"}
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {[combo.category, combo.description].filter(Boolean).join(" - ") ||
+                "Sem categoria"}
+            </p>
           </div>
-          <p className="text-sm text-muted-foreground">
-            {[combo.category, combo.description].filter(Boolean).join(" - ") ||
-              "Sem categoria"}
-          </p>
         </div>
         <div className="flex gap-2">
-          <Button type="button" variant="outline" onClick={onToggleActive}>
-            {combo.active ? "Desativar" : "Ativar"}
-          </Button>
           <Button type="button" variant="outline" onClick={onEdit}>
             <Pencil />
+          </Button>
+          <Button type="button" variant="destructive" onClick={onArchive}>
+            <Trash2 />
+            Excluir
           </Button>
         </div>
       </div>
@@ -741,11 +881,25 @@ function ComboCard({
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <PricingPanel
-          title="Canal proprio"
+          title="Canal próprio"
           margin={ownMargin}
           suggested={ownSuggested}
+          thumbnail={{
+            src: businessLogoUrl,
+            alt: `Logo de ${businessName}`,
+            fallback: getInitials(businessName),
+          }}
         />
-        <PricingPanel title="iFood" margin={ifoodMargin} suggested={ifoodSuggested} />
+        <PricingPanel
+          title="iFood"
+          margin={ifoodMargin}
+          suggested={ifoodSuggested}
+          thumbnail={{
+            src: "/channel-icons/ifood.png",
+            alt: "iFood",
+            fallback: "IF",
+          }}
+        />
       </div>
 
       <div className="mt-4 overflow-hidden rounded-lg border">
@@ -797,14 +951,23 @@ function PricingPanel({
   title,
   margin,
   suggested,
+  thumbnail,
 }: {
   title: string;
   margin: MarginResult;
   suggested: SuggestedPriceResult;
+  thumbnail: {
+    src: string | null;
+    alt: string;
+    fallback: string;
+  };
 }) {
   return (
     <div className="rounded-lg border p-4">
-      <h3 className="font-medium">{title}</h3>
+      <div className="flex items-center gap-3">
+        <ChannelThumbnail {...thumbnail} />
+        <h3 className="font-medium">{title}</h3>
+      </div>
       {margin.status === "neutral" ? (
         <p className="mt-3 text-sm text-muted-foreground">{margin.reason}</p>
       ) : (
@@ -838,6 +1001,33 @@ function PricingPanel({
         ) : null}
       </div>
     </div>
+  );
+}
+
+function ChannelThumbnail({
+  src,
+  alt,
+  fallback,
+}: {
+  src: string | null;
+  alt: string;
+  fallback: string;
+}) {
+  const [imageFailed, setImageFailed] = useState(false);
+
+  return (
+    <span className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#E2E8F0] bg-[#F8FAFC] text-xs font-extrabold text-[#64748B]">
+      <span aria-hidden="true">{fallback}</span>
+      {src && !imageFailed ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt={alt}
+          className="absolute inset-0 size-full object-cover"
+          onError={() => setImageFailed(true)}
+        />
+      ) : null}
+    </span>
   );
 }
 
@@ -1032,4 +1222,17 @@ function getDiagnosisText(margin: MarginResult, desiredProfitMargin: number) {
   };
 
   return labels[diagnosis];
+}
+
+function scrollToCombo(comboId: string) {
+  document
+    .getElementById(`combo-${comboId}`)
+    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function updateFocusUrl(route: "combos", itemId: string) {
+  const url = new URL(window.location.href);
+  url.pathname = `/${route}`;
+  url.searchParams.set("focus", itemId);
+  window.history.replaceState(null, "", `${url.pathname}?${url.searchParams.toString()}`);
 }

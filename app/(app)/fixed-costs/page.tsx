@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 
 import { FixedCostsManager } from "@/components/forms/fixed-costs-manager";
 import { AppShell } from "@/components/layout/app-shell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function FixedCostsPage() {
@@ -26,26 +25,22 @@ export default async function FixedCostsPage() {
 
   return (
     <AppShell businessName={business.name} businessLogoUrl={business.business_logo_url}>
-      <div className="mb-6">
-        <p className="text-sm text-muted-foreground">Custos Fixos</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-          Controle os custos da operacao
+      <div className="mb-6 max-w-3xl">
+        <p className="text-sm font-semibold text-[#F97316]">Custos fixos</p>
+        <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#0F172A]">
+          Controle os custos da operação
         </h1>
+        <p className="mt-2 text-sm leading-6 text-[#64748B]">
+          Acompanhe despesas recorrentes e o peso delas no faturamento médio.
+        </p>
       </div>
 
-      <Card className="rounded-lg">
-        <CardHeader>
-          <CardTitle>Custos mensais</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <FixedCostsManager
-            businessId={business.id}
-            averageMonthlyRevenue={business.average_monthly_revenue}
-            ifoodMonthlyFee={business.ifood_monthly_fee}
-            initialFixedCosts={fixedCosts ?? []}
-          />
-        </CardContent>
-      </Card>
+      <FixedCostsManager
+        businessId={business.id}
+        averageMonthlyRevenue={business.average_monthly_revenue}
+        ifoodMonthlyFee={business.ifood_monthly_fee}
+        initialFixedCosts={fixedCosts ?? []}
+      />
     </AppShell>
   );
 }

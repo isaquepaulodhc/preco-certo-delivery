@@ -52,6 +52,7 @@ Campos:
 - `name text not null`
 - `segment text`
 - `city text`
+- `state_uf text`
 - `whatsapp text`
 - `business_logo_url text`
 - `average_monthly_revenue numeric(12,2) default 0`
@@ -73,6 +74,7 @@ Constraints e indices:
 
 - `unique(owner_user_id)`
 - CHECK de `ifood_plan in ('basic', 'delivery', 'custom')`
+- CHECK de `state_uf is null or state_uf in (...)`
 - indice em `owner_user_id`
 
 ### subscriptions
@@ -169,6 +171,7 @@ Campos:
 - `unit_cost numeric(14,6) not null`
 - `last_price_update date`
 - `active boolean default true`
+- `deleted_at timestamptz`
 - `created_at timestamptz default now()`
 - `updated_at timestamptz default now()`
 
@@ -206,7 +209,9 @@ Campos:
 - `selling_price numeric(12,2) not null default 0`
 - `resale_unit_cost numeric(12,2) default 0`
 - `loss_percentage numeric(7,6) default 0`
+- `image_url text`
 - `active boolean default true`
+- `deleted_at timestamptz`
 - `created_at timestamptz default now()`
 - `updated_at timestamptz default now()`
 
@@ -242,7 +247,9 @@ Campos:
 - `name text not null`
 - `selling_price numeric(12,2) not null default 0`
 - `loss_percentage numeric(7,6) default 0`
+- `image_url text`
 - `active boolean default true`
+- `deleted_at timestamptz`
 - `created_at timestamptz default now()`
 - `updated_at timestamptz default now()`
 
@@ -441,6 +448,28 @@ Policy de Storage para INSERT/UPDATE/DELETE:
 bucket_id = 'business-logos'
 and (storage.foldername(name))[1] = public.current_business_id()::text
 ```
+
+## Storage Para Imagens Do Cardapio
+
+Bucket:
+
+```text
+menu-images
+```
+
+Paths:
+
+```text
+products/{business_id}/{product_id}/image.ext
+combos/{business_id}/{combo_id}/image.ext
+```
+
+Regras:
+
+- Bucket publico para leitura das miniaturas.
+- Escrita, update e delete restritos ao proprio negocio.
+- Aceitar JPG, PNG e WEBP.
+- Salvar apenas a URL publica em `products.image_url` ou `combos.image_url`.
 
 ## `payment_code`
 
