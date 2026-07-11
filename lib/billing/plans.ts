@@ -8,6 +8,7 @@ export const BILLING_PLANS = [
     cycleLabel: "Mensal",
     billingLabel: "R$ 77 por mês",
     accessLabel: "30 dias de acesso",
+    monthlyEquivalentLabel: null,
   },
   {
     code: "pro",

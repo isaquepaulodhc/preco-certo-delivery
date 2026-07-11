@@ -233,6 +233,7 @@ Campos:
 - `ingredient_id uuid not null references ingredients(id) on delete restrict`
 - `quantity numeric(12,4) not null`
 - `unit text not null`
+- `deleted_at timestamptz`
 - `created_at timestamptz default now()`
 - `updated_at timestamptz default now()`
 
@@ -264,6 +265,7 @@ Campos:
 - `combo_id uuid not null references combos(id) on delete cascade`
 - `product_id uuid not null references products(id) on delete restrict`
 - `quantity numeric(12,4) not null default 1`
+- `deleted_at timestamptz`
 - `created_at timestamptz default now()`
 - `updated_at timestamptz default now()`
 

@@ -220,7 +220,8 @@ Na Fase 9C, a migration
 `supabase/migrations/0007_plan_durations_menu_images_and_soft_delete.sql`
 atualiza as RPCs de PIX manual para valores/duracoes por plano, adiciona
 `image_url` em produtos e combos, adiciona `deleted_at` para arquivamento
-logico de ingredientes/produtos/combos e cria o bucket publico `menu-images`.
+logico de ingredientes/produtos/combos e seus vinculos, e cria o bucket
+publico `menu-images`.
 
 Paths de imagens do cardapio:
 

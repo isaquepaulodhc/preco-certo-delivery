@@ -5,8 +5,14 @@ alter table public.products
   add column if not exists image_url text,
   add column if not exists deleted_at timestamptz;
 
+alter table public.product_ingredients
+  add column if not exists deleted_at timestamptz;
+
 alter table public.combos
   add column if not exists image_url text,
+  add column if not exists deleted_at timestamptz;
+
+alter table public.combo_items
   add column if not exists deleted_at timestamptz;
 
 insert into storage.buckets (id, name, public)

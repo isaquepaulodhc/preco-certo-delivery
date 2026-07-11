@@ -234,40 +234,86 @@ export function ProductsManager({
     parsedSheet: ParsedSheetItem[],
   ) {
     const supabase = createClient();
-    const { error: deleteError } = await supabase
+    const { data: existingRows, error: selectError } = await supabase
       .from("product_ingredients")
-      .delete()
+      .select("id, product_id, ingredient_id, quantity, unit, deleted_at")
       .eq("business_id", businessId)
       .eq("product_id", productId);
 
-    if (deleteError) {
+    if (selectError) {
       return {
         rows: products.find((product) => product.id === productId)?.technicalSheet ?? [],
-        errorMessage: `Produto salvo, mas nao foi possivel atualizar a ficha tecnica: ${deleteError.message}`,
+        errorMessage: `Produto salvo, mas nao foi possivel carregar a ficha tecnica atual: ${selectError.message}`,
       };
     }
 
-    if (parsedSheet.length === 0) {
-      return { rows: [] as ProductIngredientRow[], errorMessage: null };
+    const existingByIngredientId = new Map(
+      (existingRows ?? []).map((row) => [
+        row.ingredient_id,
+        row as ProductIngredientRow & { deleted_at: string | null },
+      ]),
+    );
+    const parsedIngredientIds = new Set(parsedSheet.map((item) => item.ingredientId));
+    const archivedAt = new Date().toISOString();
+
+    for (const item of parsedSheet) {
+      const existing = existingByIngredientId.get(item.ingredientId);
+      const payload = {
+        quantity: item.quantity,
+        unit: item.unit,
+        deleted_at: null,
+      };
+      const { error: syncError } = existing
+        ? await supabase
+            .from("product_ingredients")
+            .update(payload)
+            .eq("business_id", businessId)
+            .eq("id", existing.id)
+        : await supabase.from("product_ingredients").insert({
+            business_id: businessId,
+            product_id: productId,
+            ingredient_id: item.ingredientId,
+            ...payload,
+          });
+
+      if (syncError) {
+        return {
+          rows: products.find((product) => product.id === productId)?.technicalSheet ?? [],
+          errorMessage: `Produto salvo, mas houve falha ao sincronizar a ficha tecnica: ${syncError.message}`,
+        };
+      }
     }
 
-    const { data, error: insertError } = await supabase
-      .from("product_ingredients")
-      .insert(
-        parsedSheet.map((item) => ({
-          business_id: businessId,
-          product_id: productId,
-          ingredient_id: item.ingredientId,
-          quantity: item.quantity,
-          unit: item.unit,
-        })),
-      )
-      .select("id, product_id, ingredient_id, quantity, unit");
+    for (const row of existingRows ?? []) {
+      if (parsedIngredientIds.has(row.ingredient_id) || row.deleted_at) {
+        continue;
+      }
 
-    if (insertError) {
+      const { error: archiveError } = await supabase
+        .from("product_ingredients")
+        .update({ deleted_at: archivedAt })
+        .eq("business_id", businessId)
+        .eq("id", row.id);
+
+      if (archiveError) {
+        return {
+          rows: products.find((product) => product.id === productId)?.technicalSheet ?? [],
+          errorMessage: `Produto salvo, mas houve falha ao arquivar itens removidos da ficha tecnica: ${archiveError.message}`,
+        };
+      }
+    }
+
+    const { data, error: refreshError } = await supabase
+      .from("product_ingredients")
+      .select("id, product_id, ingredient_id, quantity, unit")
+      .eq("business_id", businessId)
+      .eq("product_id", productId)
+      .is("deleted_at", null);
+
+    if (refreshError) {
       return {
-        rows: [] as ProductIngredientRow[],
-        errorMessage: `Produto salvo, mas houve falha ao gravar a ficha tecnica: ${insertError.message}`,
+        rows: products.find((product) => product.id === productId)?.technicalSheet ?? [],
+        errorMessage: `Produto salvo, mas houve falha ao recarregar a ficha tecnica: ${refreshError.message}`,
       };
     }
 

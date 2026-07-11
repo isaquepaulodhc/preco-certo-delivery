@@ -235,39 +235,85 @@ export function CombosManager({
     parsedItems: ParsedComboItem[],
   ) {
     const supabase = createClient();
-    const { error: deleteError } = await supabase
+    const { data: existingRows, error: selectError } = await supabase
       .from("combo_items")
-      .delete()
+      .select("id, combo_id, product_id, quantity, deleted_at")
       .eq("business_id", businessId)
       .eq("combo_id", comboId);
 
-    if (deleteError) {
+    if (selectError) {
       return {
         rows: combos.find((combo) => combo.id === comboId)?.items ?? [],
-        errorMessage: `Combo salvo, mas nao foi possivel atualizar os produtos: ${deleteError.message}`,
+        errorMessage: `Combo salvo, mas nao foi possivel carregar os produtos atuais: ${selectError.message}`,
       };
     }
 
-    if (parsedItems.length === 0) {
-      return { rows: [] as ComboItemRow[], errorMessage: null };
-    }
+    const existingByProductId = new Map(
+      (existingRows ?? []).map((row) => [
+        row.product_id,
+        row as ComboItemRow & { deleted_at: string | null },
+      ]),
+    );
+    const parsedProductIds = new Set(parsedItems.map((item) => item.productId));
+    const archivedAt = new Date().toISOString();
 
-    const { data, error: insertError } = await supabase
-      .from("combo_items")
-      .insert(
-        parsedItems.map((item) => ({
+    for (const item of parsedItems) {
+      const existing = existingByProductId.get(item.productId);
+      const payload = {
+        quantity: item.quantity,
+        deleted_at: null,
+      };
+      const { error: syncError } = existing
+        ? await supabase
+            .from("combo_items")
+            .update(payload)
+            .eq("business_id", businessId)
+            .eq("id", existing.id)
+        : await supabase.from("combo_items").insert({
           business_id: businessId,
           combo_id: comboId,
           product_id: item.productId,
-          quantity: item.quantity,
-        })),
-      )
-      .select("id, combo_id, product_id, quantity");
+          ...payload,
+        });
 
-    if (insertError) {
+      if (syncError) {
+        return {
+          rows: combos.find((combo) => combo.id === comboId)?.items ?? [],
+          errorMessage: `Combo salvo, mas houve falha ao sincronizar os produtos: ${syncError.message}`,
+        };
+      }
+    }
+
+    for (const row of existingRows ?? []) {
+      if (parsedProductIds.has(row.product_id) || row.deleted_at) {
+        continue;
+      }
+
+      const { error: archiveError } = await supabase
+        .from("combo_items")
+        .update({ deleted_at: archivedAt })
+        .eq("business_id", businessId)
+        .eq("id", row.id);
+
+      if (archiveError) {
+        return {
+          rows: combos.find((combo) => combo.id === comboId)?.items ?? [],
+          errorMessage: `Combo salvo, mas houve falha ao arquivar produtos removidos: ${archiveError.message}`,
+        };
+      }
+    }
+
+    const { data, error: refreshError } = await supabase
+      .from("combo_items")
+      .select("id, combo_id, product_id, quantity")
+      .eq("business_id", businessId)
+      .eq("combo_id", comboId)
+      .is("deleted_at", null);
+
+    if (refreshError) {
       return {
-        rows: [] as ComboItemRow[],
-        errorMessage: `Combo salvo, mas houve falha ao gravar os produtos: ${insertError.message}`,
+        rows: combos.find((combo) => combo.id === comboId)?.items ?? [],
+        errorMessage: `Combo salvo, mas houve falha ao recarregar os produtos: ${refreshError.message}`,
       };
     }
 

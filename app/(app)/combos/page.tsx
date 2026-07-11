@@ -71,7 +71,8 @@ export default async function CombosPage({
     supabase
       .from("combo_items")
       .select("id, combo_id, product_id, quantity")
-      .eq("business_id", business.id),
+      .eq("business_id", business.id)
+      .is("deleted_at", null),
     supabase
       .from("products")
       .select("id, name, selling_price, active")
@@ -80,7 +81,8 @@ export default async function CombosPage({
     supabase
       .from("product_ingredients")
       .select("product_id, ingredient_id, quantity, unit")
-      .eq("business_id", business.id),
+      .eq("business_id", business.id)
+      .is("deleted_at", null),
     supabase
       .from("ingredients")
       .select("id, usage_unit, unit_cost")

@@ -47,7 +47,8 @@ export default async function ProductsPage({
     supabase
       .from("product_ingredients")
       .select("id, product_id, ingredient_id, quantity, unit")
-      .eq("business_id", business.id),
+      .eq("business_id", business.id)
+      .is("deleted_at", null),
     supabase
       .from("ingredients")
       .select("id, name, usage_unit, unit_cost, active")
